@@ -1,0 +1,43 @@
+body {
+  height: 100vh;
+  width: 100vw;
+  font-family: 'Roboto', sans-serif;
+}
+
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+
+.scroll {
+  overflow: auto;
+  
+}
+.scroll::-webkit-scrollbar-thumb {
+  background-color: var(--dl-color-lighter);
+}
+@supports (-moz-appearance: none) {
+  .scroll {
+      scrollbar-color: var(--dl-color-lighter) transparent;
+  
+  }
+}
+.reactive-scroll .scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+.reactive-scroll .scroll:hover::-webkit-scrollbar-thumb {
+  background-color: var(--dl-color-lighter);
+}
+.scroll,
+.scroll-x,
+.scroll-y {
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+}
+
+.scroll::-webkit-scrollbar {
+  width: 6px; /* Width of the vertical scrollbar */
+  height: 6px; /* Height of the horizontal scrollbar, useful for horizontal scrolling areas */
+}

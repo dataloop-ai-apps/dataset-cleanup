@@ -1,0 +1,4 @@
+uvicorn
+fastapi
+dtlpy
+scikit-learn
