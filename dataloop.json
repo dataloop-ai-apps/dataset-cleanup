@@ -16,7 +16,11 @@
                 "supportedSlots": [
                     {
                         "type": "datasetBrowser",
-                        "configuration": {}
+                        "configuration": {
+                            "layout": {
+                                "rightBarView": "default"
+                            }
+                        }
                     }
                 ],
                 "conditions": {}
