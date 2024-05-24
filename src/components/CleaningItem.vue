@@ -25,7 +25,7 @@
                 :step="0.001"
             />
 
-            <dl-range
+            <DlRange
                 v-model="minmax"
                 class="range"
                 :class="{ invisible: selectedType == 'Similarity' }"
@@ -37,17 +37,25 @@
             />
 
             <DlButton :disabled="isDisabled" @click="getImages">Apply</DlButton>
+
+            <ReloadProgress
+                :last-updated="lastUpdated"
+                :progress="progress"
+                @reload="triggerReload"
+            />
         </div>
         <div v-if="loading" class="loading">
             <DlSpinner text="Loading, please wait..." size="60px" />
         </div>
-        <div></div>
 
-        <div v-if="!loading && selectedType == 'Similarity'">
+        <div v-if="!loading && showMainContent && selectedType == 'Similarity'">
             <div v-if="options.length > 0">
                 <div class="select-all">
                     <DlCheckbox
                         v-model="SelectAll"
+                        true-value="all"
+                        false-value="none"
+                        indeterminate-value="some"
                         class="checkbox-all"
                         label="Select All"
                     />
@@ -88,8 +96,20 @@
                             :key="cluster.key"
                         >
                             <div class="main-image">
+                                <ItemThumbnailImage
+                                    :item-id="cluster.main_item"
+                                    :checked="false"
+                                    :main-checked="cluster.is_choosed"
+                                    :size="72"
+                                    @main-item-selected="
+                                        MainItemSelected($event)
+                                    "
+                                />
                                 <DlCheckbox
                                     v-model="allChecked[cluster.key]"
+                                    true-value="all"
+                                    false-value="none"
+                                    indeterminate-value="some"
                                     :disabled="!cluster.is_choosed"
                                     class="checkbox"
                                     @checked="
@@ -105,44 +125,34 @@
                                         )
                                     "
                                 />
-                                <ItemThumbnailImage
-                                    :item-id="cluster.main_item"
-                                    :checked="false"
-                                    :main-checked="cluster.is_choosed"
-                                    @main-item-selected="
-                                        MainItemSelected($event)
-                                    "
-                                />
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <div class="rigth-pannel scroll">
+                    <div class="right-pannel">
+                        <div class="right-pannel-inner scroll">
                             <div
-                                v-for="(id, index) in visibleImages"
+                                v-for="(id, index) in images"
                                 :key="index + '-' + id"
                             >
                                 <ItemThumbnailImage
                                     :item-id="id"
                                     :checked="selectedIds.includes(id)"
                                     :main-checked="false"
+                                    :size="thumbSize"
                                     @update:checked="handleCheckedUpdate(id)"
                                     @delete:item="deleteItem(id)"
                                 />
                             </div>
                         </div>
-                        <DlPagination
-                            v-model="page"
-                            class="pagination"
-                            :total-items="images.length"
-                            :rows-per-page="rowsPerPage"
-                            :boundary-links="true"
-                            :boundary-numbers="true"
-                            :direction-links="true"
-                            :with-quick-navigation="true"
-                            :with-rows-per-page="true"
-                            :with-legend="true"
-                            @update:rows-per-page="updateRowsPerPage"
+                        <dl-slider
+                            v-model="thumbSize"
+                            class="thumb-size"
+                            :min="72"
+                            :max="268"
+                            :step="28"
+                            style="white-space: nowrap"
+                            text="Thumb size"
+                            slim
                         />
                     </div>
                 </div>
@@ -163,7 +173,7 @@
                 />
             </div>
         </div>
-        <div v-if="!loading && selectedType !== 'Similarity'">
+        <div v-if="!loading && showMainContent && selectedType !== 'Similarity'">
             <div v-if="qualityCount > 0">
                 <div class="select-all">
                     <DlCheckbox
@@ -249,7 +259,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, onBeforeMount, onMounted } from 'vue'
+import { defineProps, onBeforeMount } from 'vue'
 import {
     DlSelect,
     DlSpinner,
@@ -263,11 +273,10 @@ import {
 } from '@dataloop-ai/components'
 import ItemThumbnailImage from './ItemThumbnailImage.vue'
 import EmptyState from './EmptyState.vue'
+import ReloadProgress from './ReloadProgress.vue'
 import {
-    reactive,
     ref,
     computed,
-    watch,
     nextTick,
     defineExpose,
     defineEmits
@@ -277,7 +286,7 @@ const selected = ref('feature set 1')
 const types = ref(['Similarity', 'Darkness', 'Blurriness'])
 const selectedType = ref('Similarity')
 const similarity = ref(0.01)
-const minmax = ref({ min: 0, max: 100 })
+const minmax = ref({ min: 0, max: 0.1 })
 const images = ref<string[]>([])
 const coruptedImages = ref<string[]>([])
 const featureSetDict = ref({})
@@ -293,19 +302,25 @@ type Cluster = {
     is_choosed: boolean
     items: string[] // assuming each item is identified by a string ID
 }
-const emit = defineEmits(['trigger-refresh'])
+const emit = defineEmits(['trigger-reload', 'trigger-refresh'])
 
 type Props = {
-    itemId: string
     datasetId: string
+    lastUpdated: string
+    progress: number
 }
+
+const showMainContent = computed(() => {
+    return (props.lastUpdated !== 'Never') && (props.lastUpdated !== 'Error') && (props.progress === 1)
+})
 
 const coruptedImagesLength = computed(() => {
     return coruptedImages.value.length
 })
 
 defineExpose({
-    deletedItemsRemove
+    deletedItemsRemove,
+    reset
 })
 
 const noEmptyClusters = computed(() => {
@@ -314,6 +329,10 @@ const noEmptyClusters = computed(() => {
 
 const triggerRefresh = () => {
     emit('trigger-refresh')
+}
+
+const triggerReload = () => {
+    emit('trigger-reload')
 }
 
 const checkMetadata = async () => {
@@ -325,7 +344,7 @@ const checkMetadata = async () => {
 
 const props = defineProps<Props>()
 
-const page = ref(1)
+const thumbSize = ref(128)
 
 const coruptPage = ref(1)
 
@@ -356,26 +375,31 @@ const clustersAll = ref<Cluster[]>([])
 
 const selectedIds = ref<string[]>([])
 
-const allChecked = computed(() => {
-    return clusters.value.reduce((acc, cluster) => {
-        acc[cluster.key] = cluster.items.every((id) =>
-            selectedIds.value.includes(id)
-        )
-        return acc
-    }, {})
+const allChecked = computed({
+    get: function() {
+        const checkboxes: { [key: string]: string } = {}
+        const isSelected = function (id: string) { return selectedIds.value.includes(id) }
+        for (const cluster of clusters.value) {
+            checkboxes[cluster.key] = cluster.items.every(isSelected) ? 'all' : (
+                cluster.items.some(isSelected) ? 'some' : 'none'
+            )
+        }
+        return checkboxes
+    },
+    set: function() {}
 })
 
 const SelectAll = computed({
     get: () => {
         if (selectedIds.value.length === 0) {
-            return false
+            return 'none'
         }
         return clustersAll.value.every((cluster) =>
             cluster.items.every((id) => selectedIds.value.includes(id))
-        )
+        ) ? 'all' : 'some'
     },
     set: (value) => {
-        if (value) {
+        if (value === 'all') {
             clustersAll.value.forEach((cluster) => {
                 cluster.items.forEach((id) => {
                     if (!selectedIds.value.includes(id)) {
@@ -459,12 +483,6 @@ function debounce(func, wait) {
         }, wait) as unknown as number
     }
 }
-
-const visibleImages = computed(() => {
-    const start = (page.value - 1) * rowsPerPage.value
-    const end = start + rowsPerPage.value
-    return images.value.slice(start, end)
-})
 
 const visibleCoruptedImages = computed(() => {
     const start = (coruptPage.value - 1) * rowsPerPage.value
@@ -563,13 +581,6 @@ const MainItemSelected = async (itemId: string) => {
             (id) => !new_images.items.includes(id)
         )
     }
-    page.value = Math.max(
-        Math.min(
-            Math.ceil(images.value.length / rowsPerPage.value),
-            page.value
-        ),
-        1
-    )
 
     await nextTick()
     updateSelection()
@@ -586,8 +597,6 @@ const getImages = debounce(async () => {
     if (loading.value) return // Prevent function from running if it's already loading
     loading.value = true
     if (selectedType.value === 'Similarity') {
-        page.value = 1
-
         const response = await fetch(
             `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}`
         )
@@ -608,7 +617,6 @@ const getImages = debounce(async () => {
 
 const updateRowsPerPage = (value: number) => {
     rowsPerPage.value = value
-    page.value = 1
     coruptPage.value = 1
 }
 
@@ -626,7 +634,14 @@ const fetchCoruptedImages = async () => {
     coruptedImages.value = result.items
 }
 
-onBeforeMount(async () => {
+async function reset() {
+    coruptPage.value = 1
+    clustersAll.value = []
+    clusters.value = []
+    images.value = []
+    selectedIds.value = []
+    mainItem.value = ''
+
     const feature_sets = await fetch(
         `/api/available_feature_sets?datasetId=${props.datasetId}`
     )
@@ -635,6 +650,10 @@ onBeforeMount(async () => {
     options.value = Object.keys(response)
     await checkMetadata()
     selected.value = options.value[0]
+}
+
+onBeforeMount(async () => {
+    await reset()
     mounted.value = true
     datasetItemsCount.value = (await window.dl.datasets.get()).itemsCount
     if (
@@ -673,7 +692,6 @@ const SelectedChange = () => {
     display: flex; /* Establishes the flex container */
     justify-content: space-between;
     align-items: center; /* Vertically centers the items in the container */
-    margin-top: 5px;
     padding-bottom: 10px;
     border-bottom: 1px solid var(--dl-color-disabled);
 }
@@ -685,9 +703,12 @@ const SelectedChange = () => {
 .slider :deep(#slider-input) {
     width: 50px;
 }
+/* undo bootstrap style */
+.slider :deep(.header .row.text) {
+    margin-left: 0;
+}
 .actions {
     display: flex;
-    margin-top: 5px;
 }
 
 .range {
@@ -715,6 +736,11 @@ const SelectedChange = () => {
     min-width: 38px;
     text-align: right;
 }
+/* override hardcoded button text size in dl-range */
+.range :deep(.dl-button-container) {
+    --dl-button-font-size: 12px !important;
+}
+
 
 .loading {
     display: grid; /* Use the grid layout */
@@ -723,24 +749,32 @@ const SelectedChange = () => {
     width: 100vw; /* Full viewport width, necessary if your spinner is absolute or fixed positioned */
 }
 .left-pannel {
-    width: 165px;
-    min-width: 165px;
+    min-width: 110px;
     overflow-y: auto;
+    height: calc(100vh - 80px);
 }
-.rigth-pannel {
-    border-left: 2px solid var(--dl-color-disabled);
+.right-pannel {
+    border-left: 1px solid var(--dl-color-disabled);
+    display: flex; flex-direction: column; flex-grow: 1;
+}
+.right-pannel-inner {
     display: flex;
-    width: calc(100vw - 170px);
+    width: 100%;
     flex-wrap: wrap;
     overflow-y: auto;
     align-content: flex-start;
     justify-content: flex-start;
-    border-left: 2px solid var(--dl-color-disabled);
-    padding-left: 5px;
-    margin-left: 5px;
+    padding-left: 30px;
+    padding-top: 12px;
+    height: calc(100vh - 80px - 20px); /* 20px for thumbs slider */
 }
+
+.right-pannel .thumb-size {
+    width: 200px; padding-left: 30px;
+}
+
 .pagination :deep(.dl-pagination--container) {
-    border-left: 2px solid var(--dl-color-disabled);
+    border-left: 1px solid var(--dl-color-disabled);
     padding-left: 5px;
     padding-right: 10px;
     margin-left: 5px;
@@ -759,30 +793,28 @@ const SelectedChange = () => {
     overflow-y: auto;
     align-content: flex-start;
     justify-content: flex-start;
-    padding-left: 5px;
-    margin-left: 5px;
-    height: calc(100vh - 190px); /* Adjust as needed based on your layout */
+    height: calc(100vh - 80px - 40px); /* 40px for pagination */
     overflow-y: auto;
 }
 
 .main-image {
     display: flex;
+    padding-top: 12px;
 }
+/*
+.main-image:hover {
+    background-color: var(--dl-color-fill);
+}
+*/
+.main-image :deep(.thumb-im) {
+    margin-right: 8px;
+}
+
 
 .checkbox {
     justify-content: center;
     margin-right: 5px;
     transform: translateY(-15px);
-}
-
-.left-pannel {
-    height: calc(100vh - 157px); /* Adjust as needed based on your layout */
-
-    overflow-y: auto;
-}
-.rigth-pannel {
-    height: calc(100vh - 190px); /* Adjust as needed based on your layout */
-    overflow-y: auto;
 }
 
 .invisible {
@@ -792,7 +824,7 @@ const SelectedChange = () => {
 .select-all {
     display: flex;
     justify-content: flex-start;
-    min-height: 40px;
+    min-height: 28px;
     border-bottom: 1px solid var(--dl-color-disabled);
     align-items: center;
 }

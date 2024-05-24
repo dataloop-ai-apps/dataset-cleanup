@@ -4,45 +4,14 @@
             <DlSpinner text="Loading App..." size="128px" />
         </div>
         <div v-else>
-            <div class="top-bar">
-                <div
-                    style="
-                        display: flex;
-                        flex-direction: row;
-                        align-items: center;
-                        gap: 15px;
-                    "
-                >
-                    <DlTypography variant="h4">
-                        Last updated: {{ lastUpdated }}
-                    </DlTypography>
-                    <DlButton
-                        :label="buttonLabel"
-                        :disabled="operationRunning"
-                        :outlined="operationRunning"
-                        @click="onClick"
-                    />
-                </div>
-                <div>
-                    <DlProgressBar
-                        label="Progress bar"
-                        :value="progressValue"
-                        v-bind="{
-                            width: '200px',
-                            showValue: true,
-                            showPercentage: true
-                        }"
-                        :indeterminate="frameLoadFailed"
-                    />
-                </div>
-            </div>
-
             <CleaningItem
-                v-if="showCleaning && lastUpdated !== 'Error'"
+                v-if="datasetId"
                 ref="cleaningItemRef"
-                :item-id="exportItemId"
                 :dataset-id="datasetId"
+                :last-updated="lastUpdated"
+                :progress="progressValue"
                 @trigger-refresh="handleEmptystateTrigger"
+                @trigger-reload="handleReload"
             />
         </div>
     </DlThemeProvider>
@@ -51,28 +20,21 @@
 <script setup lang="ts">
 import {
     DlThemeProvider,
-    DlTypography,
-    DlButton,
-    DlProgressBar,
     DlSpinner
 } from '@dataloop-ai/components'
 import { DlEvent, ThemeType } from '@dataloop-ai/jssdk'
 import { ref, onMounted, computed, nextTick } from 'vue-demi'
-import { debounce } from 'lodash'
 import CleaningItem from './components/CleaningItem.vue'
 
 const contentIframe = ref<HTMLIFrameElement | null>(null)
 const isReady = ref<boolean>(false)
-const showCleaning = ref<boolean>(false)
 const buildReady = ref<boolean>(false)
 const currentTheme = ref<ThemeType>(ThemeType.LIGHT)
 const lastUpdated = ref<string>('Never')
 const operationRunning = ref<boolean>(true)
-const buttonLabel = ref<string>('Run')
 const progressValue = ref<number>(0)
 const datasetId = ref<string>(null)
 const projectId = ref<string>(null)
-const exportItemId = ref<string>(null)
 const frameLoadFailed = ref<boolean>(false)
 const cleaningItemRef = ref(null)
 
@@ -103,7 +65,6 @@ const updateStatus = async () => {
     }
     lastUpdated.value = data.exportDate
     progressValue.value = data.progress / 100
-    exportItemId.value = data.exportItemId
 
     const completed = data.progress === 100
     if (data.status == 'error') {
@@ -116,14 +77,11 @@ const updateStatus = async () => {
 }
 
 const handleEmptystateTrigger = async () => {
-    showCleaning.value = false
     operationRunning.value = true
-    buttonLabel.value = 'Running'
     progressValue.value = 0
     frameLoadFailed.value = true
     buildReady.value = false
     await pollStatus()
-    showCleaning.value = true
 }
 
 const handleInitialFrameLoading = async () => {
@@ -141,9 +99,7 @@ const handleInitialFrameLoading = async () => {
         console.error('Error fetching feature vectors', e)
     }
     buildReady.value = true
-    buttonLabel.value = 'Run'
     operationRunning.value = false
-    showCleaning.value = true
 }
 
 const triggerMainAppLoad = async () => {
@@ -152,7 +108,6 @@ const triggerMainAppLoad = async () => {
     const dataset = await window.dl.datasets.get()
     datasetId.value = dataset?.id ?? null
 
-    buttonLabel.value = 'Running'
     operationRunning.value = true
 }
 
@@ -193,7 +148,6 @@ const pollStatus = async () => {
             const completed = await updateStatus()
             if (completed) {
                 buildReady.value = true
-                buttonLabel.value = 'Run'
                 operationRunning.value = false
                 clearInterval(intervalId)
                 resolve(true)
@@ -205,41 +159,21 @@ const pollStatus = async () => {
     })
 }
 
-const runDatasetInsightGeneration = async () => {
-    showCleaning.value = false
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    fetch(`/api/export/run?datasetId=${datasetId.value}&timezone=${timezone}`)
-    await pollStatus()
-    showCleaning.value = true
-}
-
-const debouncedRunDatasetInsightGeneration = debounce(
-    runDatasetInsightGeneration,
-    300
-)
-
-const initCleaning = async () => {
-    const response = await fetch(`/api/get_items`)
-    const clusters = await response.json()
-    const images = clusters[0].items
-    const selectedIds = [...images]
-    const mainItem = clusters[0].main_item
-
-    window.dl.sendEvent({
-        name: 'dl:items:update:selection',
-        payload: selectedIds
-    })
-}
-
-async function onClick() {
+const handleReload = async () => {
     operationRunning.value = true
-    buttonLabel.value = 'Running'
     progressValue.value = 0
     frameLoadFailed.value = true
     buildReady.value = false
 
-    debouncedRunDatasetInsightGeneration()
+    progressValue.value = 0
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    fetch(`/api/export/run?datasetId=${datasetId.value}&timezone=${timezone}`)
+    await pollStatus()
+    if (cleaningItemRef.value) {
+        cleaningItemRef.value.reset()
+    }
 }
+
 </script>
 
 <style scoped>

@@ -9,10 +9,11 @@
             />
             <img
                 :class="{ checked: checked, mainchecked: props.mainChecked }"
-                :src="thumbnail"
                 loading="lazy"
-                :width="128"
-                :height="128"
+                :src="thumbnail"
+                :width="size"
+                :height="size"
+                @load="fetchItem"
             />
         </div>
 
@@ -27,20 +28,16 @@
 
 <script setup lang="ts">
 import {
-    DlSelect,
     DlTypography,
-    DlSlider,
-    DlButton,
     DlCheckbox,
     DlTooltip
 } from '@dataloop-ai/components'
 import { SDKItem } from '@dataloop-ai/jssdk'
-import { defineProps, withDefaults, watch } from 'vue'
+import { fetchSDKItem } from './items'
+import { defineProps, withDefaults } from 'vue'
 import {
     ref,
-    onMounted,
     computed,
-    nextTick,
     defineEmits,
     onUnmounted
 } from 'vue-demi'
@@ -55,15 +52,28 @@ type Props = {
     itemId: string
     checked: boolean
     mainChecked: boolean
+    size?: number
 }
 const props = withDefaults(defineProps<Props>(), {
-    mainChecked: false
+    mainChecked: false,
+    size: 128
 })
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
 const item = ref<SDKItem | null>(null)
-const thumbnail = computed(() => item.value?.thumbnail)
+const fetchItem = async() => {
+    if (props.itemId !== item.value?.id) {
+        const data = await fetchSDKItem(props.itemId)
+        if (Object.keys(data).length === 0) {
+            emit('delete:item', props.itemId)
+        }
+        item.value = data
+    }
+}
+
+const thumbnail = computed(() => {
+    return item.value ? item.value.thumbnail :
+        'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#' + Math.random()
+})
 
 const truncateNameWithExtension = (name: string, maxWidth: number) => {
     const extensionMatch = name.match(/\.[^/.]+$/)
@@ -83,36 +93,10 @@ const truncateNameWithExtension = (name: string, maxWidth: number) => {
 
 const name = computed(() => {
     if (!item.value?.name) return ''
-    return truncateNameWithExtension(item.value.name, 128)
+    return truncateNameWithExtension(item.value.name, props.size)
 })
 
 const fullname = computed(() => item.value?.name)
-
-const fetchSDKItem = async (itemId: string, attempts = 3) => {
-    try {
-        const data = await window.dl.items.get(itemId)
-        if (Object.keys(data).length === 0) {
-            emit('delete:item', itemId)
-        }
-        item.value = data
-    } catch (error) {
-        if (attempts > 1) {
-            await delay(400)
-            await fetchSDKItem(itemId, attempts - 1)
-        } else {
-            console.error('Error fetching item', error)
-        }
-    }
-}
-
-// Watch for changes in itemId and refetch the item data
-watch(
-    () => props.itemId,
-    async (newItemId) => {
-        await fetchSDKItem(newItemId)
-    },
-    { immediate: true }
-)
 
 const clickTimer = ref<number | null>(null)
 const clickCount = ref(0)
@@ -171,6 +155,7 @@ onUnmounted(() => {
     position: absolute;
     top: 5%;
     left: 5%;
+    pointer-events: none;
 }
 
 .thumb-im img.checked {
