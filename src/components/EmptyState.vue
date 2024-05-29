@@ -2,29 +2,29 @@
     <div>
         <div v-if="!showProgress" class="base-container">
             <DlIcon
-                icon="icon-dl-project-filled"
-                size="40px"
+                :icon="icon"
+                size="50px"
                 color="dl-color-darker"
             />
-            <DlTypography class="f20" :bold="true" color="dl-color-darker">{{
+            <DlTypography class="f20" color="dl-color-darker">{{
                 props.text1
             }}</DlTypography>
 
             <DlTypography class="f14" color="dl-color-medium">{{
                 props.text2
             }}</DlTypography>
-            <DlTypography class="padb-20 f14" color="dl-color-medium">{{
+            <DlTypography v-if="props.text3" class="padb-20 f14" color="dl-color-medium">{{
                 props.text3
             }}</DlTypography>
 
-            <DlButton class="padb-20" @click="startExecution">{{
+            <DlButton v-if="props.text4" class="padb-20" @click="startExecution">{{
                 props.text4
             }}</DlButton>
 
-            <DlTypography v-if="props.showBottom" color="dl-color-medium">{{
+            <DlTypography v-if="props.text5" color="dl-color-medium">{{
                 props.text5
             }}</DlTypography>
-            <DlTypography v-if="props.showBottom" color="dl-color-medium">{{
+            <DlTypography v-if="props.text6" color="dl-color-medium">{{
                 props.text6
             }}</DlTypography>
         </div>
@@ -47,36 +47,30 @@
 
 <script setup lang="ts">
 import {
-    DlSelect,
     DlTypography,
-    DlSlider,
     DlButton,
     DlIcon,
     DlProgressBar
 } from '@dataloop-ai/components'
-import { SDKItem } from '@dataloop-ai/jssdk'
-import { text } from 'stream/consumers'
-import { defineProps, withDefaults, watch } from 'vue'
+import { defineProps, withDefaults } from 'vue'
 import {
     ref,
     onMounted,
     computed,
-    nextTick,
-    defineEmits,
-    onUnmounted
+    defineEmits
 } from 'vue-demi'
 
 type Props = {
-    execType: string
-    datasetId: string
+    icon?: string
+    execType?: string
+    datasetId?: string
     text1: string
     text2: string
-    text3: string
-    text4: string
-    text5: string
-    text6: string
-    labelText: string
-    showBottom: boolean
+    text3?: string
+    text4?: string
+    text5?: string
+    text6?: string
+    labelText?: string
 }
 
 const FrontendStatus = {
@@ -93,13 +87,23 @@ const status = ref<string>('')
 const latestStatus = ref<string>('created')
 const progress = ref<number>(0)
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+    icon: 'icon-dl-project-filled',
+    execType: '',
+    datasetId: '',
+    text3: '',
+    text4: '',
+    text5: '',
+    text6: '',
+    labelText: ''
+})
 
 const showProgress = computed(() => {
     return status.value === 'running'
 })
 
 onMounted(async () => {
+    if (!props.execType) return;
     const response = await fetch(
         `/api/get_execution_status?datasetId=${props.datasetId}&exec_type=${props.execType}`
     )
@@ -207,6 +211,9 @@ const updateStatus = async () => {
 }
 .f20 {
     font-size: 20px;
+    font-weight: 500;
+    margin-top: 10px;
+    text-transform: capitalize;
 }
 
 .f14 {

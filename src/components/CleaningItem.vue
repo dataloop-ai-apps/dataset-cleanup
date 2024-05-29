@@ -49,8 +49,22 @@
         </div>
 
         <div v-if="!loading && showMainContent && selectedType == 'Similarity'">
-            <div v-if="options.length > 0">
+            <EmptyState v-if="(options.length > 0) && (noEmptyClusters.length === 0)"
+                icon="icon-dl-item-filled"
+                text1="No results were found for the selected filters"
+                text2="Try to filter different options to find what you’re looking for"
+            />
+            <div v-else-if="options.length > 0">
                 <div class="select-all">
+                    <DlChip
+                        class="sorting-chip"
+                        clickable
+                        color="dl-color-bg"
+                        :icon="sortDirection ? 'icon-dl-arrow-up' : 'icon-dl-arrow-down'"
+                        max-width="110px"
+                        text-color="dl-color-medium"
+                        @click="toggleSortDirection"
+                    >Sort by: similarities</DlChip>
                     <DlCheckbox
                         v-model="SelectAll"
                         true-value="all"
@@ -99,10 +113,14 @@
                                 <ItemThumbnailImage
                                     :item-id="cluster.main_item"
                                     :checked="false"
-                                    :main-checked="cluster.is_choosed"
                                     :size="72"
                                     @main-item-selected="
-                                        MainItemSelected($event)
+                                        handleCheckedUpdateMain(
+                                            cluster.key,
+                                            allChecked[cluster.key] === 'all'
+                                                ? 'uncheck'
+                                                : 'check'
+                                        )
                                     "
                                 />
                                 <DlCheckbox
@@ -110,7 +128,6 @@
                                     true-value="all"
                                     false-value="none"
                                     indeterminate-value="some"
-                                    :disabled="!cluster.is_choosed"
                                     class="checkbox"
                                     @checked="
                                         handleCheckedUpdateMain(
@@ -168,13 +185,17 @@
                     text5="This will spin up a high-memory machine to execute CLIP model for extracting embeddings from all items in the dataset."
                     text6="Ensure the high-memory machine is available in your project's catalogue."
                     label-text="Adding Embeddings..."
-                    :show-bottom="true"
                     @trigger-refresh="triggerRefresh"
                 />
             </div>
         </div>
         <div v-if="!loading && showMainContent && selectedType !== 'Similarity'">
-            <div v-if="qualityCount > 0">
+            <EmptyState v-if="(qualityCount > 0) && (coruptedImagesLength === 0)"
+                icon="icon-dl-item-filled"
+                text1="No results were found for the selected filters"
+                text2="Try to filter different options to find what you’re looking for"
+            />
+            <div v-else-if="qualityCount > 0">
                 <div class="select-all">
                     <DlCheckbox
                         v-model="SelectAllCorupted"
@@ -250,7 +271,6 @@
                     text5="This will spin up a high-memory machine to execute Quality Scores Generator for all items in the dataset."
                     text6="Ensure the high-memory machine is available in your project's catalogue."
                     label-text="Adding Metadata..."
-                    :show-bottom="true"
                     @trigger-refresh="checkMetadata"
                 />
             </div>
@@ -287,19 +307,16 @@ const types = ref(['Similarity', 'Darkness', 'Blurriness'])
 const selectedType = ref('Similarity')
 const similarity = ref(0.01)
 const minmax = ref({ min: 0, max: 0.1 })
-const images = ref<string[]>([])
 const coruptedImages = ref<string[]>([])
 const featureSetDict = ref({})
 const datasetItemsCount = ref(0)
 
-const mainItem = ref<string>('')
 const loading = ref(false)
 const mounted = ref(false)
 const qualityCount = ref(0)
 type Cluster = {
     key: string
     main_item: string
-    is_choosed: boolean
     items: string[] // assuming each item is identified by a string ID
 }
 const emit = defineEmits(['trigger-reload', 'trigger-refresh'])
@@ -375,6 +392,14 @@ const clustersAll = ref<Cluster[]>([])
 
 const selectedIds = ref<string[]>([])
 
+const images = computed(() => {
+    const ids: string[] = []
+    for (const cluster of clusters.value) {
+        ids.push.apply(ids, cluster.items)
+    }
+    return ids
+})
+
 const allChecked = computed({
     get: function() {
         const checkboxes: { [key: string]: string } = {}
@@ -405,18 +430,10 @@ const SelectAll = computed({
                     if (!selectedIds.value.includes(id)) {
                         selectedIds.value.push(id)
                     }
-                    if (!images.value.includes(id)) {
-                        images.value.push(id)
-                    }
                 })
-                cluster.is_choosed = true
             })
         } else {
             selectedIds.value = []
-            images.value = []
-            clustersAll.value.forEach((cluster) => {
-                cluster.is_choosed = false
-            })
         }
         updateSelection()
     }
@@ -499,7 +516,6 @@ const deleteItem = (itemId: string) => {
     if (index !== -1) {
         selectedIds.value.splice(index, 1)
     }
-    images.value = images.value.filter((id) => id !== itemId)
     // delete from clusters
     clustersAll.value.forEach((cluster) => {
         const index = cluster.items.indexOf(itemId)
@@ -558,34 +574,6 @@ const handleCheckedUpdate = async (itemId: string) => {
     updateSelection()
 }
 
-const MainItemSelected = async (itemId: string) => {
-    mainItem.value = itemId
-
-    const new_images = clustersAll.value.find(
-        (cluster) => cluster.main_item === itemId
-    )
-
-    new_images.is_choosed = !new_images.is_choosed
-    if (new_images.is_choosed) {
-        selectedIds.value = Array.from(
-            new Set([...selectedIds.value, ...new_images.items])
-        )
-        images.value = Array.from(
-            new Set([...images.value, ...new_images.items])
-        )
-    } else {
-        selectedIds.value = selectedIds.value.filter(
-            (id) => !new_images.items.includes(id)
-        )
-        images.value = images.value.filter(
-            (id) => !new_images.items.includes(id)
-        )
-    }
-
-    await nextTick()
-    updateSelection()
-}
-
 const updateSelection = () => {
     window.dl.sendEvent({
         name: 'dl:items:update:selection',
@@ -602,9 +590,7 @@ const getImages = debounce(async () => {
         )
         clustersAll.value = await response.json()
         clusters.value = clustersAll.value.slice(0, 10)
-        images.value = [...clusters.value[0].items]
-        selectedIds.value = [...images.value]
-        mainItem.value = clusters.value[0].main_item
+        selectedIds.value = [...clusters.value[0].items]
         await nextTick()
     } else {
         coruptPage.value = 1
@@ -638,9 +624,7 @@ async function reset() {
     coruptPage.value = 1
     clustersAll.value = []
     clusters.value = []
-    images.value = []
     selectedIds.value = []
-    mainItem.value = ''
 
     const feature_sets = await fetch(
         `/api/available_feature_sets?datasetId=${props.datasetId}`
@@ -685,6 +669,23 @@ const SelectedChange = () => {
         )
     }
 }
+
+
+const sortDirection = ref<boolean>(false)
+
+const sortFunction = function (a: Cluster, b: Cluster):number {
+    const direction = sortDirection.value ? 1 : -1;
+    if (a.items.length > b.items.length) return direction;
+    if (a.items.length < b.items.length) return -direction;
+    return 0;
+}
+
+const toggleSortDirection = () => {
+    sortDirection.value = !sortDirection.value
+    clustersAll.value.sort(sortFunction)
+    clusters.value = clustersAll.value.slice(0, clusters.value.length)
+}
+
 </script>
 
 <style scoped>
@@ -827,6 +828,15 @@ const SelectedChange = () => {
     min-height: 28px;
     border-bottom: 1px solid var(--dl-color-disabled);
     align-items: center;
+}
+.select-all .sorting-chip {
+    font-size: 10px;
+    min-width: 110px;
+    flex-direction: row-reverse;
+    user-select: none;
+}
+.select-all .sorting-chip :deep(.dl-chip-left-icon-container) {
+    position: inherit;
 }
 
 .checkbox-all {

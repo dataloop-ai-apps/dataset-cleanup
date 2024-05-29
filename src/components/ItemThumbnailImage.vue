@@ -3,12 +3,11 @@
     <div class="thumb-im" role="button" @click="handleClick">
         <div class="image-thumb" :class="{ 'no-annotation': !item?.annotated }">
             <DlCheckbox
-                v-if="checked"
                 :model-value="props.checked"
                 class="checkbox"
             />
             <img
-                :class="{ checked: checked, mainchecked: props.mainChecked }"
+                :class="{ checked: checked, checked: props.checked }"
                 loading="lazy"
                 :src="thumbnail"
                 :width="size"
@@ -51,11 +50,9 @@ const emit = defineEmits([
 type Props = {
     itemId: string
     checked: boolean
-    mainChecked: boolean
     size?: number
 }
 const props = withDefaults(defineProps<Props>(), {
-    mainChecked: false,
     size: 128
 })
 
@@ -162,9 +159,6 @@ onUnmounted(() => {
     border: 2px solid var(--dl-color-secondary);
 }
 
-.thumb-im img.mainchecked {
-    border: 2px solid var(--dl-color-secondary);
-}
 .image-thumb {
     position: relative;
     display: inline-block;
