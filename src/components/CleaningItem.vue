@@ -501,11 +501,9 @@ const handleScroll = (event: Event) => {
         return distanceToTop(a as HTMLElement) - distanceToTop(b as HTMLElement)
     })
 
-    const closest = mains[0] as HTMLElement
-    if (distanceToTop(closest) < thumbSize.value) {
-        const divInOther = other.querySelector(`[data-main="${closest.dataset.main}"]`)
-        debounce(scrollIntoView, 300)(divInOther)
-    }
+    const div = mains[0] as HTMLElement
+    const divInOther = other.querySelector(`[data-main="${div.dataset.main}"]`)
+    debounce(scrollIntoView, 300)(divInOther)
 }
 
 const SelectedTypeChange = async () => {
