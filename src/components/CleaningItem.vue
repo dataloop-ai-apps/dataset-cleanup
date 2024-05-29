@@ -48,7 +48,11 @@
             <DlSpinner text="Loading, please wait..." size="60px" />
         </div>
 
-        <div v-if="!loading && showMainContent && selectedType == 'Similarity'">
+        <div
+            v-if="
+                !loading && showMainContent && selectedType == 'Similarity' && props.progress == 1
+            "
+        >
             <EmptyState
                 v-if="options.length > 0 && noEmptyClusters.length === 0"
                 icon="icon-dl-item-filled"
@@ -172,7 +176,11 @@
                 />
             </div>
         </div>
-        <div v-if="!loading && showMainContent && selectedType !== 'Similarity'">
+        <div
+            v-if="
+                !loading && showMainContent && selectedType !== 'Similarity' && props.progress == 1
+            "
+        >
             <EmptyState
                 v-if="qualityCount > 0 && coruptedImagesLength === 0"
                 icon="icon-dl-item-filled"
@@ -351,7 +359,8 @@ const AllItemsCountCorupted = computed(() => {
 const isDisabled = computed(() => {
     return (
         ((options.value.length === 0 || loading.value) && selectedType.value === 'Similarity') ||
-        (qualityCount.value === 0 && selectedType.value !== 'Similarity')
+        (qualityCount.value === 0 && selectedType.value !== 'Similarity') ||
+        props.progress != 1
     )
 })
 

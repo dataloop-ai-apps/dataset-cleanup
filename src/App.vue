@@ -5,7 +5,7 @@
         </div>
         <div v-else>
             <CleaningItem
-                v-if="buildReady"
+                v-if="datasetId"
                 ref="cleaningItemRef"
                 :dataset-id="datasetId"
                 :last-updated="lastUpdated"
@@ -144,6 +144,9 @@ const pollStatus = async () => {
             if (completed) {
                 buildReady.value = true
                 operationRunning.value = false
+                if (cleaningItemRef.value) {
+                    cleaningItemRef.value.reset()
+                }
                 clearInterval(intervalId)
                 resolve(true)
             } else if (attempts >= maxAttempts) {

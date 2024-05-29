@@ -6,6 +6,7 @@ python -m uvicorn "app:app" \
         &
 
 cp /tmp/app/nginx.conf /etc/nginx/conf.d
+npm install
 npm run dev &
 
 nginx -g 'daemon off;'
