@@ -485,20 +485,26 @@ const handleScroll = (event: Event) => {
 
     if (scrollingIntoView) return
 
-    const mains = target.querySelectorAll('[data-main]')
     const other = target.closest('.actions').querySelector(
         target.classList.contains('left-pannel')
             ? '.right-pannel-inner'
             : '.left-pannel'
     )
-    for (const el of mains) {
-        const div = el as HTMLElement
+
+    const mains = [...target.querySelectorAll('[data-main]')]
+    const distanceToTop = function(div: HTMLElement) {
         const top = div.offsetTop - div.parentElement.offsetTop
-        if (scrollTop < top + 30) {
-            const divInOther = other.querySelector(`[data-main="${div.dataset.main}"]`)
-            debounce(scrollIntoView, 300)(divInOther)
-            break
-        }
+        return Math.abs(top - scrollTop)
+    }
+
+    mains.sort(function(a, b) {
+        return distanceToTop(a as HTMLElement) - distanceToTop(b as HTMLElement)
+    })
+
+    const closest = mains[0] as HTMLElement
+    if (distanceToTop(closest) < thumbSize.value) {
+        const divInOther = other.querySelector(`[data-main="${closest.dataset.main}"]`)
+        debounce(scrollIntoView, 300)(divInOther)
     }
 }
 
