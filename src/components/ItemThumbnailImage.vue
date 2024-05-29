@@ -60,7 +60,7 @@ const item = ref<SDKItem | null>(null)
 const fetchItem = async() => {
     if (props.itemId !== item.value?.id) {
         const data = await fetchSDKItem(props.itemId)
-        if (Object.keys(data).length === 0) {
+        if (!data || (Object.keys(data).length === 0)) {
             emit('delete:item', props.itemId)
         }
         item.value = data

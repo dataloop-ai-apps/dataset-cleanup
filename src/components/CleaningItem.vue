@@ -105,11 +105,11 @@
                 </div>
                 <div class="actions">
                     <div class="left-pannel scroll" @scroll="handleScroll">
-                        <div
+                        <div class="main-image"
                             v-for="cluster in noEmptyClusters"
                             :key="cluster.key"
+                            :data-main="cluster.main_item"
                         >
-                            <div class="main-image">
                                 <ItemThumbnailImage
                                     :item-id="cluster.main_item"
                                     :checked="false"
@@ -142,24 +142,20 @@
                                         )
                                     "
                                 />
-                            </div>
                         </div>
                     </div>
                     <div class="right-pannel">
-                        <div class="right-pannel-inner scroll">
-                            <div
-                                v-for="(id, index) in images"
-                                :key="index + '-' + id"
-                            >
-                                <ItemThumbnailImage
-                                    :item-id="id"
-                                    :checked="selectedIds.includes(id)"
-                                    :main-checked="false"
-                                    :size="thumbSize"
-                                    @update:checked="handleCheckedUpdate(id)"
-                                    @delete:item="deleteItem(id)"
-                                />
-                            </div>
+                        <div class="right-pannel-inner scroll" @scroll="handleScroll">
+                            <ItemThumbnailImage
+                                v-for="id in images"
+                                :data-main="first2main[id]"
+                                :key="id"
+                                :item-id="id"
+                                :checked="selectedIds.includes(id)"
+                                :size="thumbSize"
+                                @update:checked="handleCheckedUpdate(id)"
+                                @delete:item="deleteItem(id)"
+                            />
                         </div>
                         <dl-slider
                             v-model="thumbSize"
@@ -233,18 +229,14 @@
                     />
                 </div>
                 <div class="whole-pannel scroll">
-                    <div
-                        v-for="(id, index) in visibleCoruptedImages"
-                        :key="index + '-' + id"
-                    >
-                        <ItemThumbnailImage
-                            :item-id="id"
-                            :checked="selectedIds.includes(id)"
-                            :main-checked="false"
-                            @update:checked="handleCheckedUpdate(id)"
-                            @delete:item="deleteItemCorupted(id)"
-                        />
-                    </div>
+                    <ItemThumbnailImage
+                        v-for="id in visibleCoruptedImages"
+                        :key="id"
+                        :item-id="id"
+                        :checked="selectedIds.includes(id)"
+                        @update:checked="handleCheckedUpdate(id)"
+                        @delete:item="deleteItemCorupted(id)"
+                    />
                 </div>
                 <DlPagination
                     v-model="coruptPage"
@@ -394,10 +386,18 @@ const selectedIds = ref<string[]>([])
 
 const images = computed(() => {
     const ids: string[] = []
-    for (const cluster of clusters.value) {
+    for (const cluster of noEmptyClusters.value) {
         ids.push.apply(ids, cluster.items)
     }
     return ids
+})
+
+const first2main = computed(() => {
+    const main: { [id: string]: string } = {}
+    for (const cluster of noEmptyClusters.value) {
+        main[cluster.items[0]] = cluster.main_item
+    }
+    return main
 })
 
 const allChecked = computed({
@@ -462,11 +462,43 @@ const SelectAllCorupted = computed({
     }
 })
 
+let scrollingIntoView: boolean = false
+const scrollIntoView = function (element: HTMLElement) {
+    scrollingIntoView = true
+    element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest'
+    })
+    setTimeout(function() {
+        scrollingIntoView = false
+    }, 900)
+}
+
 const handleScroll = (event: Event) => {
-    const { scrollTop, clientHeight, scrollHeight } = event.target
+    const target = event.target as HTMLElement
+    const { scrollTop, clientHeight, scrollHeight } = target
     const nearBottom = scrollHeight - (scrollTop + clientHeight) < 25
     if (nearBottom && clusters.value.length < clustersAll.value.length) {
         clusters.value = clustersAll.value.slice(0, clusters.value.length + 10)
+    }
+
+    if (scrollingIntoView) return
+
+    const mains = target.querySelectorAll('[data-main]')
+    const other = target.closest('.actions').querySelector(
+        target.classList.contains('left-pannel')
+            ? '.right-pannel-inner'
+            : '.left-pannel'
+    )
+    for (const el of mains) {
+        const div = el as HTMLElement
+        const top = div.offsetTop - div.parentElement.offsetTop
+        if (scrollTop < top + 30) {
+            const divInOther = other.querySelector(`[data-main="${div.dataset.main}"]`)
+            debounce(scrollIntoView, 300)(divInOther)
+            break
+        }
     }
 }
 
