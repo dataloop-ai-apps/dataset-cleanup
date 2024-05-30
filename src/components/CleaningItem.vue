@@ -615,7 +615,7 @@ const getImages = debounce(async () => {
             `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}`
         )
         clustersAll.value = await response.json()
-        clusters.value = clustersAll.value.slice(0, 10)
+        clusters.value = clustersAll.value.slice(0, 30)
         selectedIds.value = [...clusters.value[0].items]
         await nextTick()
     } else {
@@ -695,6 +695,8 @@ onBeforeMount(async () => {
             'warning'
         )
     }
+
+    getImages()
 })
 
 const sendToastMassage = (message_text: string, type_text: string) => {
