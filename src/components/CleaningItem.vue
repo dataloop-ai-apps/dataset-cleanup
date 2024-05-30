@@ -647,6 +647,10 @@ async function reset() {
     options.value = Object.keys(response)
     await checkMetadata()
     selected.value = options.value[0]
+
+    if (options.value.length > 0) {
+        await getImages()
+    }
 }
 
 onBeforeMount(async () => {
@@ -686,8 +690,6 @@ onBeforeMount(async () => {
             'warning'
         )
     }
-
-    getImages()
 })
 
 const sendToastMassage = (message_text: string, type_text: string) => {
@@ -721,7 +723,7 @@ const sortFunction = function (a: Cluster, b: Cluster): number {
 const toggleSortDirection = () => {
     sortDirection.value = !sortDirection.value
     clustersAll.value.sort(sortFunction)
-    for (let div of document.querySelectorAll('.scroll')) {
+    for (const div of document.querySelectorAll('.scroll')) {
         div.scrollTop = 0
     }
 }
