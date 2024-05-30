@@ -64,7 +64,7 @@ const truncateNameWithExtension = (name: string, maxWidth: number) => {
     const basename = extension ? name.slice(0, -extension.length) : name
     const maxChars = maxWidth / 6
 
-    if (basename.length + extension.length > maxChars) {
+    if (basename && (basename.length + extension.length > maxChars)) {
         return basename.substring(0, maxChars - extension.length - 3) + '...' + extension
     }
     return name

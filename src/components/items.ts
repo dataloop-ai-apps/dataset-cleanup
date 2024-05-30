@@ -8,7 +8,7 @@ function delay(ms: number) {
     })
 }
 
-export async function fetchSDKItem(itemId: string, attempts = 3) {
+export async function fetchSDKItem(itemId: string, attempts = 5) {
     try {
         const promise = items[itemId] ?? window.dl.items.get(itemId)
         items[itemId] = promise

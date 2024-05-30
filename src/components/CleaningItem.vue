@@ -106,7 +106,7 @@
                     />
                 </div>
                 <div class="actions">
-                    <div class="left-pannel scroll" @scroll="handleScroll">
+                    <div class="left-pannel scroll" @scrollend="handleScroll">
                         <div
                             v-for="cluster in noEmptyClusters"
                             :key="cluster.key"
@@ -136,7 +136,7 @@
                         </div>
                     </div>
                     <div class="right-pannel">
-                        <div class="right-pannel-inner scroll" @scroll="handleScroll">
+                        <div class="right-pannel-inner scroll" @scrollend="handleScroll">
                             <ItemThumbnailImage
                                 v-for="id in images"
                                 :key="id"
@@ -321,7 +321,7 @@ defineExpose({
 })
 
 const noEmptyClusters = computed(() => {
-    return clusters.value.filter((cluster) => cluster.main_item !== '')
+    return clustersAll.value.filter((cluster) => cluster.main_item !== '')
 })
 
 const triggerRefresh = () => {
@@ -364,8 +364,6 @@ const isDisabled = computed(() => {
     )
 })
 
-const clusters = ref<Cluster[]>([])
-
 const clustersAll = ref<Cluster[]>([])
 
 const selectedIds = ref<string[]>([])
@@ -392,7 +390,7 @@ const allChecked = computed({
         const isSelected = function (id: string) {
             return selectedIds.value.includes(id)
         }
-        for (const cluster of clusters.value) {
+        for (const cluster of clustersAll.value) {
             checkboxes[cluster.key] = cluster.items.every(isSelected)
                 ? 'all'
                 : cluster.items.some(isSelected)
@@ -467,11 +465,6 @@ const scrollIntoView = function (element: HTMLElement) {
 
 const handleScroll = (event: Event) => {
     const target = event.target as HTMLElement
-    const { scrollTop, clientHeight, scrollHeight } = target
-    const nearBottom = scrollHeight - (scrollTop + clientHeight) < 25
-    if (nearBottom && clusters.value.length < clustersAll.value.length) {
-        clusters.value = clustersAll.value.slice(0, clusters.value.length + 10)
-    }
 
     if (scrollingIntoView) return
 
@@ -484,7 +477,7 @@ const handleScroll = (event: Event) => {
     const mains = [...target.querySelectorAll('[data-main]')]
     const distanceToTop = function (div: HTMLElement) {
         const top = div.offsetTop - div.parentElement.offsetTop
-        return Math.abs(top - scrollTop)
+        return Math.abs(top - target.scrollTop)
     }
 
     mains.sort(function (a, b) {
@@ -493,7 +486,7 @@ const handleScroll = (event: Event) => {
 
     const div = mains[0] as HTMLElement
     const divInOther = other.querySelector(`[data-main="${div.dataset.main}"]`)
-    debounce(scrollIntoView, 300)(divInOther)
+    scrollIntoView(divInOther as HTMLElement)
 }
 
 const SelectedTypeChange = async () => {
@@ -615,8 +608,7 @@ const getImages = debounce(async () => {
             `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}`
         )
         clustersAll.value = await response.json()
-        clusters.value = clustersAll.value.slice(0, 10)
-        selectedIds.value = [...clusters.value[0].items]
+        selectedIds.value = [...clustersAll.value[0].items]
         await nextTick()
     } else {
         coruptPage.value = 1
@@ -647,7 +639,6 @@ const fetchCoruptedImages = async () => {
 async function reset() {
     coruptPage.value = 1
     clustersAll.value = []
-    clusters.value = []
     selectedIds.value = []
 
     const feature_sets = await fetch(`/api/available_feature_sets?datasetId=${props.datasetId}`)
@@ -695,6 +686,8 @@ onBeforeMount(async () => {
             'warning'
         )
     }
+
+    getImages()
 })
 
 const sendToastMassage = (message_text: string, type_text: string) => {
@@ -728,7 +721,9 @@ const sortFunction = function (a: Cluster, b: Cluster): number {
 const toggleSortDirection = () => {
     sortDirection.value = !sortDirection.value
     clustersAll.value.sort(sortFunction)
-    clusters.value = clustersAll.value.slice(0, clusters.value.length)
+    for (let div of document.querySelectorAll('.scroll')) {
+        div.scrollTop = 0
+    }
 }
 </script>
 
