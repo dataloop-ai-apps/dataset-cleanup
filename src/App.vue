@@ -167,9 +167,6 @@ const handleReload = async () => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
     fetch(`/api/export/run?datasetId=${datasetId.value}&timezone=${timezone}`)
     await pollStatus()
-    if (cleaningItemRef.value) {
-        cleaningItemRef.value.reset()
-    }
 }
 </script>
 
