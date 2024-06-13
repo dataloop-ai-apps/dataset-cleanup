@@ -8,14 +8,14 @@ function delay(ms: number) {
     })
 }
 
-export async function fetchSDKItem(itemId: string, attempts = 5) {
+export async function fetchSDKItem(itemId: string, attempts = 7) {
     try {
         const promise = items[itemId] ?? window.dl.items.get(itemId)
         items[itemId] = promise
         return await promise
     } catch (error) {
         if (attempts > 1) {
-            await delay(400)
+            await delay(Math.ceil(300 * (1 + Math.random())))
             return await fetchSDKItem(itemId, attempts - 1)
         } else {
             console.error('Error fetching item ' + itemId, error)

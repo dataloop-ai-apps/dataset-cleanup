@@ -106,7 +106,7 @@
                     />
                 </div>
                 <div class="actions">
-                    <div class="left-pannel scroll" @scrollend="handleScroll">
+                    <div class="left-pannel scroll">
                         <div
                             v-for="cluster in noEmptyClusters"
                             :key="cluster.key"
@@ -118,9 +118,9 @@
                                 :checked="false"
                                 :size="72"
                                 @main-item-selected="
-                                    handleCheckedUpdateMain(
+                                    handleLeftSideClick(
                                         cluster.key,
-                                        allChecked[cluster.key] === 'all' ? 'uncheck' : 'check'
+                                        cluster.main_item
                                     )
                                 "
                             />
@@ -451,7 +451,7 @@ const SelectAllCorupted = computed({
 })
 
 let scrollingIntoView: boolean = false
-const scrollIntoView = function (element: HTMLElement) {
+const scrollIntoView = function (element: Element) {
     scrollingIntoView = true
     element.scrollIntoView({
         behavior: 'smooth',
@@ -461,6 +461,19 @@ const scrollIntoView = function (element: HTMLElement) {
     setTimeout(function () {
         scrollingIntoView = false
     }, 900)
+}
+
+const handleLeftSideClick = function (key: string, id: string) {
+    const firstImage =
+        document.querySelector(`.actions .right-pannel-inner [data-main="${id}"]`)
+    if (firstImage) {
+        scrollIntoView (firstImage)
+    }
+
+    handleCheckedUpdateMain(
+        key,
+        allChecked.value[key] === 'all' ? 'uncheck' : 'check'
+    )
 }
 
 const handleScroll = (event: Event) => {
@@ -486,7 +499,9 @@ const handleScroll = (event: Event) => {
 
     const div = mains[0] as HTMLElement
     const divInOther = other.querySelector(`[data-main="${div.dataset.main}"]`)
-    scrollIntoView(divInOther as HTMLElement)
+    if (divInOther) {
+        scrollIntoView(divInOther)
+    }
 }
 
 const SelectedTypeChange = async () => {
