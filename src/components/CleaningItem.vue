@@ -5,7 +5,7 @@
             <DlSelect
                 v-model="selected"
                 :options="options"
-                :disabled="selectedType !== 'Similarity'"
+                :disabled="['Darkness/Brightness', 'Blurriness/Sharpness'].includes(selectedType)"
                 width="25%"
                 @change="SelectedChange"
             />
@@ -28,7 +28,10 @@
             <DlRange
                 v-model="minmax"
                 class="range"
-                :class="{ invisible: selectedType == 'Similarity' }"
+                :class="{
+                    invisible: selectedType == 'Similarity',
+                    'non-visible': selectedType == 'Anomalies'
+                }"
                 :text="selectedType"
                 :min="0"
                 :max="1"
@@ -118,10 +121,7 @@
                                 :checked="false"
                                 :size="72"
                                 @main-item-selected="
-                                    handleLeftSideClick(
-                                        cluster.key,
-                                        cluster.main_item
-                                    )
+                                    handleLeftSideClick(cluster.key, cluster.main_item)
                                 "
                             />
                             <DlCheckbox
@@ -283,7 +283,7 @@ import ReloadProgress from './ReloadProgress.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
 const options = ref([])
 const selected = ref('feature set 1')
-const types = ref(['Similarity', 'Darkness/Brightness', 'Blurriness/Sharpness'])
+const types = ref(['Similarity', 'Anomalies', 'Darkness/Brightness', 'Blurriness/Sharpness'])
 const selectedType = ref('Similarity')
 const similarity = ref(0.01)
 const minmax = ref({ min: 0, max: 0.1 })
@@ -464,16 +464,12 @@ const scrollIntoView = function (element: Element) {
 }
 
 const handleLeftSideClick = function (key: string, id: string) {
-    const firstImage =
-        document.querySelector(`.actions .right-pannel-inner [data-main="${id}"]`)
+    const firstImage = document.querySelector(`.actions .right-pannel-inner [data-main="${id}"]`)
     if (firstImage) {
-        scrollIntoView (firstImage)
+        scrollIntoView(firstImage)
     }
 
-    handleCheckedUpdateMain(
-        key,
-        allChecked.value[key] === 'all' ? 'uncheck' : 'check'
-    )
+    handleCheckedUpdateMain(key, allChecked.value[key] === 'all' ? 'uncheck' : 'check')
 }
 
 const handleScroll = (event: Event) => {
@@ -877,6 +873,10 @@ const toggleSortDirection = () => {
 
 .invisible {
     display: none;
+}
+
+.non-visible {
+    opacity: 0;
 }
 
 .select-all {

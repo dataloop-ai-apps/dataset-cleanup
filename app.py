@@ -125,7 +125,26 @@ def get_items(datasetId: str, featureSetName: str, similarity: float, type: str,
             })
 
         return HTMLResponse(json.dumps(output_clusters, indent=2), status_code=200)
-    elif type != 'Similarity':
+
+    elif type == 'Anomalies':
+        feature_vectors = exporter.feature_sets_export[featureSetName]
+        values = np.array([item['value'] for item in feature_vectors])
+        normalized_data = normalize(values, norm='l2')
+        item_ids = [item['itemId'] for item in feature_vectors]
+
+        min_samples_value = 2
+        dbscan = DBSCAN(eps=0.3, min_samples=min_samples_value, metric='cosine')
+
+        clusters = dbscan.fit_predict(normalized_data)
+
+        ids = []
+        for item_id, cluster in zip(item_ids, clusters):
+            if cluster == -1:
+                ids.append(item_id)
+
+        return HTMLResponse(json.dumps({'items': ids, 'total': len(ids)}, indent=2), status_code=200)
+
+    else:
         items_count, ids = exporter.quality_score(type, min_v, max_v, pagination, limit, True)
         return HTMLResponse(json.dumps({'items': ids, 'total': items_count}, indent=2), status_code=200)
 
