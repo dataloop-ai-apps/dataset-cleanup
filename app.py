@@ -74,7 +74,7 @@ app.add_middleware(
 
 
 @router.get("/get_items")
-def get_items(datasetId: str, featureSetName: str, similarity: float, type: str, pagination: int = 0, limit: int = 10, min_v: float = 0, max_v: float = 1.0):
+async def get_items(datasetId: str, featureSetName: str, similarity: float, type: str, pagination: int = 0, limit: int = 10, min_v: float = 0, max_v: float = 1.0):
     exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
     if type == 'Similarity':
         feature_vectors = exporter.feature_sets_export[featureSetName]
