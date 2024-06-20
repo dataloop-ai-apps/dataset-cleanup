@@ -5,8 +5,8 @@
     "description": "Provides cleanup on the dataset",
     "attributes": {
         "Provider": "Dataloop",
-        "Category": "Element",
-        "Element Type": "Studio"
+        "Category": "Application",
+        "Application Type": "Data Management"
     },
     "codebase": {
         "type": "git",
