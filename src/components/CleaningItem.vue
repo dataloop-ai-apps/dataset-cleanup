@@ -283,7 +283,8 @@ import ReloadProgress from './ReloadProgress.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
 const options = ref([])
 const selected = ref('feature set 1')
-const types = ref(['Similarity', 'Anomalies', 'Darkness/Brightness', 'Blurriness/Sharpness'])
+// const types = ref(['Similarity', 'Anomalies', 'Darkness/Brightness', 'Blurriness/Sharpness'])
+const types = ref(['Similarity', 'Darkness/Brightness', 'Blurriness/Sharpness'])
 const selectedType = ref('Similarity')
 const similarity = ref(0.01)
 const minmax = ref({ min: 0, max: 0.1 })
