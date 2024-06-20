@@ -36,7 +36,7 @@ class Exporter:
     def refresh(self):
         item: dl.Item = self.find_last_export()
         if item is not None:
-            self.progress = 90
+            self.progress = 50
             self.export_date = self.change_iso_date_string(item.created_at)
             item_dir = item.download(save_locally=False)
             self.export_item_id = json.loads(item_dir.getvalue())['OutputItemId']
@@ -86,7 +86,7 @@ class Exporter:
                     break
                 elapsed = time.time() - start
                 sleep_time = np.min([timeout - elapsed, backoff_factor * (2 ** num_tries), max_sleep_time])
-                self.progress = np.minimum(command.progress, 90)
+                self.progress = round(command.progress / 2, 0)
                 num_tries += 1
                 logger.debug("Command {!r} is running for {:.2f}[s] and now Going to sleep {:.2f}[s]".format(command.id,
                                                                                                              elapsed,
@@ -112,7 +112,7 @@ class Exporter:
             self.save_finished_export(item_id)
             annotation_zip_item = self.dataset.items.get(item_id=item_id)
             self.export_item_id = item_id
-            self.progress = 90
+            self.progress = 50
             self.load_feature_sets()
             self.progress = 100
             self.status = 'ready'
@@ -210,7 +210,9 @@ class Exporter:
         feature_sets_export = {}
 
         with zipfile.ZipFile(item_dir, 'r') as zip_ref:
-            for file in zip_ref.namelist():
+            json_files = [f for f in zip_ref.namelist() if f.endswith('.json')]
+            total_files = len(json_files)
+            for i, file in enumerate(json_files):
                 if file.endswith('.json'):
                     with zip_ref.open(file) as json_file:
                         data = json.load(json_file)
@@ -225,6 +227,7 @@ class Exporter:
                                 feature_sets_export[key] = [{'itemId': item_id, 'value': value}]
                             else:
                                 feature_sets_export[key].append({'itemId': item_id, 'value': value})
+                self.progress = round(round((i + 1) / total_files * 45, 0) + 50)
 
         self.feature_sets_export = feature_sets_export
 
