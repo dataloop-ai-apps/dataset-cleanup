@@ -56,7 +56,7 @@ type Props = {
 const FrontendStatus = {
     created: 'Initializing machine',
     failed: 'Failed',
-    'in-progress': 'In Progress',
+    'in-progress': 'In Progress  ',
     success: 'Extraction completed, loading ...',
     waiting: 'Execution Pending'
 }
