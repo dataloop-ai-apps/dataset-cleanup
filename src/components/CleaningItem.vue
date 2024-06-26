@@ -15,13 +15,35 @@
                 width="25%"
                 @change="SelectedTypeChange"
             />
+
+            <div v-if="selectedType == 'Similarity'" class="range-all">
+                <DlSlider
+                    v-model="similarity"
+                    class="slider w-100-120px"
+                    text="Similarity"
+                    :min="0.001"
+                    :max="0.15"
+                    :step="0.001"
+                />
+
+                <DlSelect
+                    v-model="minClusterSize"
+                    class="select-s"
+                    :options="clusterSizes"
+                    size="m"
+                    title="Size"
+                    tooltip="Minimal Cluster size"
+                    width="80px"
+                />
+            </div>
+
             <DlSlider
-                v-model="similarity"
-                :class="{ invisible: selectedType !== 'Similarity' }"
-                class="slider"
-                text="Similarity"
-                :min="0.001"
-                :max="0.15"
+                v-model="anomality"
+                :class="{ invisible: selectedType !== 'Anomalies' }"
+                class="slider w-20"
+                text="Minimal Distance"
+                :min="0.3"
+                :max="0.5"
                 :step="0.001"
             />
 
@@ -29,8 +51,7 @@
                 v-model="minmax"
                 class="range"
                 :class="{
-                    invisible: selectedType == 'Similarity',
-                    'non-visible': selectedType == 'Anomalies'
+                    invisible: selectedType == 'Similarity' || selectedType == 'Anomalies'
                 }"
                 :text="selectedType"
                 :min="0"
@@ -283,14 +304,16 @@ import ReloadProgress from './ReloadProgress.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
 const options = ref([])
 const selected = ref('feature set 1')
-// const types = ref(['Similarity', 'Anomalies', 'Darkness/Brightness', 'Blurriness/Sharpness'])
-const types = ref(['Similarity', 'Darkness/Brightness', 'Blurriness/Sharpness'])
+const types = ref(['Similarity', 'Anomalies', 'Darkness/Brightness', 'Blurriness/Sharpness'])
 const selectedType = ref('Similarity')
 const similarity = ref(0.01)
+const anomality = ref(0.3)
 const minmax = ref({ min: 0, max: 0.1 })
 const coruptedImages = ref<string[]>([])
 const featureSetDict = ref({})
 const datasetItemsCount = ref(0)
+const minClusterSize = ref(2)
+const clusterSizes = ref([2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 100])
 
 const loading = ref(false)
 const mounted = ref(false)
@@ -617,7 +640,7 @@ const getImages = debounce(async () => {
     loading.value = true
     if (selectedType.value === 'Similarity') {
         const response = await fetch(
-            `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}`
+            `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}`
         )
         clustersAll.value = await response.json()
         selectedIds.value = [...clustersAll.value[0].items]
@@ -640,7 +663,7 @@ const fetchCoruptedImages = async () => {
     const response = await fetch(
         `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${
             selectedType.value
-        }&similarity=${similarity.value}&pagination=${coruptPage.value - 1}&limit=${
+        }&similarity=${anomality.value}&pagination=${coruptPage.value - 1}&limit=${
             rowsPerPage.value
         }&min_v=${minmax.value.min}&max_v=${minmax.value.max}`
     )
@@ -750,8 +773,11 @@ const toggleSortDirection = () => {
     border-bottom: 1px solid var(--dl-color-disabled);
 }
 
-.slider {
+.w-20 {
     width: 20%;
+}
+
+.slider {
     display: block;
 }
 .slider :deep(#slider-input) {
@@ -761,13 +787,32 @@ const toggleSortDirection = () => {
 .slider :deep(.header .row.text) {
     margin-left: 0;
 }
+
+.select-s {
+    display: flex;
+    align-items: center;
+}
+.select-s :deep(.dl-select__title-container) {
+    margin-bottom: 0px !important;
+    margin-right: 5px !important;
+}
+
 .actions {
     display: flex;
 }
 
+.range-all {
+    width: 20%;
+    display: flex;
+    justify-content: space-between;
+}
 .range {
     width: 20%;
     flex-direction: column;
+}
+
+.w-100-120px {
+    width: calc(100% - 120px);
 }
 
 .range :deep(.header) {
