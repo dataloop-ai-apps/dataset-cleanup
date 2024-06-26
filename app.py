@@ -17,6 +17,9 @@ from collections import defaultdict
 logger = logging.getLogger('[CLEANUP]')
 logging.basicConfig(level='INFO')
 
+dl.setenv('rc')
+dl.login_m2m(email='bot.2d48ed61-2d0d-42be-ad83-fd9b09b05f87@bot.dataloop.ai', password='J5LS85v#5$v855w#U')
+
 
 class Runner(dl.BaseServiceRunner):
     def __init__(self):
@@ -74,75 +77,70 @@ app.add_middleware(
 
 
 @router.get("/get_items")
-async def get_items(datasetId: str, featureSetName: str, similarity: float, type: str, pagination: int = 0, limit: int = 10, min_v: float = 0, max_v: float = 1.0):
+async def get_items(datasetId: str, featureSetName: str, similarity: float, type: str, pagination: int = 0, limit: int = 10, min_v: float = 0, max_v: float = 1.0, clusterSize: int = 2):
     exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
-    if type == 'Similarity':
+    if type == 'Similarity' or type == 'Anomalies':
         feature_vectors = exporter.feature_sets_export[featureSetName]
         values = np.array([item['value'] for item in feature_vectors])
         normalized_data = normalize(values, norm='l2')
         item_ids = [item['itemId'] for item in feature_vectors]
+        eps_value = similarity
 
-        eps_value = similarity  # Define your own epsilon value
-        min_samples_value = 2
-        dbscan = DBSCAN(eps=eps_value, min_samples=min_samples_value, metric='cosine')
+        if type == 'Similarity':
 
-        clusters = dbscan.fit_predict(normalized_data)
+            min_samples_value = clusterSize
+            dbscan = DBSCAN(eps=eps_value, min_samples=min_samples_value, metric='cosine')
 
-        cluster_dict = defaultdict(list)
-        for item_id, cluster in zip(item_ids, clusters):
-            cluster_dict[cluster].append(item_id)
+            clusters = dbscan.fit_predict(normalized_data)
 
-        # Prepare the output data structure
-        output_clusters = []
-        for cluster, items in cluster_dict.items():
-            if cluster != -1 and len(items) >= 2:  # Filter out noise and ensure at least two items
-                # Split the first item and the rest
-                main_item = items[0]
-                rest_items = items[1:]
+            cluster_dict = defaultdict(list)
+            for item_id, cluster in zip(item_ids, clusters):
+                cluster_dict[cluster].append(item_id)
 
-                # Create the structured dictionary
-                cluster_info = {
-                    'key': f"Cluster {cluster}",
-                    'main_item': main_item,
-                    'items': rest_items,
-                    'is_choosed': False,
-                }
-                output_clusters.append(cluster_info)
+            # Prepare the output data structure
+            output_clusters = []
+            for cluster, items in cluster_dict.items():
+                if cluster != -1 and len(items) >= 2:  # Filter out noise and ensure at least two items
+                    # Split the first item and the rest
+                    main_item = items[0]
+                    rest_items = items[1:]
 
-        # Sorting clusters by the number of items (descending order)
-        output_clusters.sort(key=lambda x: len(x['items']), reverse=True)
+                    # Create the structured dictionary
+                    cluster_info = {
+                        'key': f"Cluster {cluster}",
+                        'main_item': main_item,
+                        'items': rest_items,
+                        'is_choosed': False,
+                    }
+                    output_clusters.append(cluster_info)
 
-        # first cluster have is_choosed = True
-        if len(output_clusters) > 0:
-            output_clusters[0]['is_choosed'] = True
+            # Sorting clusters by the number of items (descending order)
+            output_clusters.sort(key=lambda x: len(x['items']), reverse=True)
+
+            # remove the clusters with less items then clusterSize
+            output_clusters = [cluster for cluster in output_clusters if len(cluster['items']) >= clusterSize - 1]
+
+            # first cluster have is_choosed = True
+            if len(output_clusters) > 0:
+                output_clusters[0]['is_choosed'] = True
+            else:
+                # create dummy cluster
+                output_clusters.append({
+                    'key': 'Cluster 0',
+                    'main_item': '',
+                    'items': [],
+                    'is_choosed': True,
+                })
+
+            return HTMLResponse(json.dumps(output_clusters, indent=2), status_code=200)
+
         else:
-            # create dummy cluster
-            output_clusters.append({
-                'key': 'Cluster 0',
-                'main_item': '',
-                'items': [],
-                'is_choosed': True,
-            })
+            min_samples_value = 2
+            dbscan = DBSCAN(eps=eps_value, min_samples=min_samples_value, metric='cosine')
+            clusters = dbscan.fit_predict(normalized_data)
+            ids = [item_id for item_id, cluster in zip(item_ids, clusters) if cluster == -1]
 
-        return HTMLResponse(json.dumps(output_clusters, indent=2), status_code=200)
-
-    elif type == 'Anomalies':
-        feature_vectors = exporter.feature_sets_export[featureSetName]
-        values = np.array([item['value'] for item in feature_vectors])
-        normalized_data = normalize(values, norm='l2')
-        item_ids = [item['itemId'] for item in feature_vectors]
-
-        min_samples_value = 2
-        dbscan = DBSCAN(eps=0.3, min_samples=min_samples_value, metric='cosine')
-
-        clusters = dbscan.fit_predict(normalized_data)
-
-        ids = []
-        for item_id, cluster in zip(item_ids, clusters):
-            if cluster == -1:
-                ids.append(item_id)
-
-        return HTMLResponse(json.dumps({'items': ids, 'total': len(ids)}, indent=2), status_code=200)
+            return HTMLResponse(json.dumps({'items': ids, 'total': len(ids)}, indent=2), status_code=200)
 
     else:
         items_count, ids = exporter.quality_score(type, min_v, max_v, pagination, limit, True)
