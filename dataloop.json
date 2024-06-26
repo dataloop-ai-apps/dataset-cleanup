@@ -1,5 +1,5 @@
 {
-    "version": "0.0.14",
+    "version": "0.0.15",
     "name": "dataset-cleanup",
     "displayName": "Dataset Cleanup",
     "description": "Provides cleanup on the dataset",
@@ -11,7 +11,7 @@
     "codebase": {
         "type": "git",
         "gitUrl": "https://github.com/dataloop-ai-apps/dataset-cleanup.git",
-        "gitTag": "0.0.14"
+        "gitTag": "0.0.15"
     },
     "scope": "public",
     "components": {
