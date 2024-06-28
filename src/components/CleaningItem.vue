@@ -130,7 +130,7 @@
                     />
                 </div>
                 <div class="actions">
-                    <div class="left-pannel scroll">
+                    <div class="left-pannel scroll" @scrollend="handleLeftSideScroll">
                         <div
                             v-for="cluster in noEmptyClusters"
                             :key="cluster.key"
@@ -138,6 +138,7 @@
                             :data-main="cluster.main_item"
                         >
                             <ItemThumbnailImage
+                                ref="leftSideThumbs"
                                 :item-id="cluster.main_item"
                                 :checked="false"
                                 :size="72"
@@ -157,9 +158,10 @@
                         </div>
                     </div>
                     <div class="right-pannel">
-                        <div class="right-pannel-inner scroll" @scrollend="handleScroll">
+                        <div class="right-pannel-inner scroll" @scrollend="handleRightSideScroll">
                             <ItemThumbnailImage
                                 v-for="id in images"
+                                ref="rightSideThumbs"
                                 :key="id"
                                 :data-main="first2main[id]"
                                 :item-id="id"
@@ -247,6 +249,7 @@
                     <ItemThumbnailImage
                         v-for="id in visibleCoruptedImages"
                         :key="id"
+                        auto-load
                         :item-id="id"
                         :checked="selectedIds.includes(id)"
                         @update:checked="handleCheckedUpdate(id)"
@@ -302,6 +305,8 @@ import ItemThumbnailImage from './ItemThumbnailImage.vue'
 import EmptyState from './EmptyState.vue'
 import ReloadProgress from './ReloadProgress.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
+import debounce from './debounce'
+
 const options = ref([])
 const selected = ref('feature set 1')
 const types = ref(['Similarity', 'Anomalies', 'Darkness/Brightness', 'Blurriness/Sharpness'])
@@ -496,16 +501,34 @@ const handleLeftSideClick = function (key: string, id: string) {
     handleCheckedUpdateMain(key, allChecked.value[key] === 'all' ? 'uncheck' : 'check')
 }
 
-const handleScroll = (event: Event) => {
+const leftSideThumbs = ref<InstanceType<typeof ItemThumbnailImage>[]>([])
+const rightSideThumbs = ref<InstanceType<typeof ItemThumbnailImage>[]>([])
+
+const loadThumbs = (thumbs: InstanceType<typeof ItemThumbnailImage>[]) => {
+    const element = (el) => el.closest('.main-image') ?? el
+    const container = thumbs[0]?.$el.closest('.scroll')
+    if (container) {
+        const offsetTop0 = element(thumbs[0]?.$el).offsetTop
+        for (const thumb of thumbs) {
+            const el = element(thumb.$el)
+            thumb.inView =
+                el.offsetTop - offsetTop0 + el.offsetHeight > container.scrollTop &&
+                el.offsetTop - offsetTop0 < container.scrollTop + container.offsetHeight
+            thumb.fetchItem()
+        }
+    }
+}
+
+const handleLeftSideScroll = () => {
+    loadThumbs(leftSideThumbs.value)
+}
+
+const handleRightSideScroll = (event: Event) => {
+    loadThumbs(rightSideThumbs.value)
+
     const target = event.target as HTMLElement
 
     if (scrollingIntoView) return
-
-    const other = target
-        .closest('.actions')
-        .querySelector(
-            target.classList.contains('left-pannel') ? '.right-pannel-inner' : '.left-pannel'
-        )
 
     const mains = [...target.querySelectorAll('[data-main]')]
     const distanceToTop = function (div: HTMLElement) {
@@ -518,10 +541,19 @@ const handleScroll = (event: Event) => {
     })
 
     const div = mains[0] as HTMLElement
-    const divInOther = other.querySelector(`[data-main="${div.dataset.main}"]`)
-    if (divInOther) {
-        scrollIntoView(divInOther)
+    const divInLeft = target
+        .closest('.actions')
+        .querySelector(`.left-pannel [data-main="${div.dataset.main}"]`)
+    if (divInLeft) {
+        scrollIntoView(divInLeft)
     }
+}
+
+const loadLeftAndRightThumbs = () => {
+    setTimeout(function () {
+        loadThumbs(leftSideThumbs.value)
+        loadThumbs(rightSideThumbs.value)
+    }, 100)
 }
 
 const SelectedTypeChange = async () => {
@@ -539,19 +571,8 @@ const SelectedTypeChange = async () => {
             'warning'
         )
     }
-}
-
-const timeoutId = ref<number | null>(null)
-
-function debounce(func, wait) {
-    return function (...args: any[]) {
-        if (timeoutId.value) {
-            clearTimeout(timeoutId.value) // Clear the existing timeout
-        }
-        timeoutId.value = setTimeout(() => {
-            func(...args)
-            timeoutId.value = null // Reset the timeoutId after execution
-        }, wait) as unknown as number
+    if (selectedType.value === 'Similarity') {
+        loadLeftAndRightThumbs()
     }
 }
 
@@ -645,6 +666,7 @@ const getImages = debounce(async () => {
         clustersAll.value = await response.json()
         selectedIds.value = [...clustersAll.value[0].items]
         await nextTick()
+        loadLeftAndRightThumbs()
     } else {
         coruptPage.value = 1
         await fetchCoruptedImages()
