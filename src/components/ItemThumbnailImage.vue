@@ -4,7 +4,7 @@
         <div class="image-thumb" :class="{ 'no-annotation': !item?.annotated }">
             <DlCheckbox :model-value="props.checked" class="checkbox" />
             <img
-                :class="{ checked: checked, checked: props.checked }"
+                :class="{ checked: props.checked }"
                 loading="lazy"
                 :src="thumbnail"
                 :width="size"
@@ -26,23 +26,27 @@
 import { DlTypography, DlCheckbox, DlTooltip } from '@dataloop-ai/components'
 import { SDKItem } from '@dataloop-ai/jssdk'
 import { fetchSDKItem } from './items'
-import { defineProps, withDefaults } from 'vue'
+import { defineExpose, defineProps, withDefaults } from 'vue'
 import { ref, computed, defineEmits, onUnmounted } from 'vue-demi'
+import debounce from './debounce'
 
 const emit = defineEmits(['update:checked', 'main-item-selected', 'delete:item'])
 
 type Props = {
     itemId: string
     checked: boolean
+    autoLoad?: boolean
     size?: number
 }
 const props = withDefaults(defineProps<Props>(), {
+    autoLoad: false,
     size: 128
 })
 
 const item = ref<SDKItem | null>(null)
+const inView = ref<boolean>(false)
 const fetchItem = async () => {
-    if (props.itemId !== item.value?.id) {
+    if ((props.autoLoad || inView.value) && props.itemId !== item.value?.id) {
         const data = await fetchSDKItem(props.itemId)
         if (!data || Object.keys(data).length === 0) {
             emit('delete:item', props.itemId)
@@ -64,14 +68,14 @@ const truncateNameWithExtension = (name: string, maxWidth: number) => {
     const basename = extension ? name.slice(0, -extension.length) : name
     const maxChars = maxWidth / 6
 
-    if (basename && (basename.length + extension.length > maxChars)) {
+    if (basename && basename.length + extension.length > maxChars) {
         return basename.substring(0, maxChars - extension.length - 3) + '...' + extension
     }
     return name
 }
 
 const name = computed(() => {
-    if (!item.value?.name) return ''
+    if (!item.value?.name) return '\xa0'
     return truncateNameWithExtension(item.value.name, props.size)
 })
 
@@ -109,6 +113,11 @@ onUnmounted(() => {
         clearTimeout(clickTimer.value)
         clickTimer.value = null
     }
+})
+
+defineExpose({
+    inView,
+    fetchItem: debounce(fetchItem, 300)
 })
 </script>
 
