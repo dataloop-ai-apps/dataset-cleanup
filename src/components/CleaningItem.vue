@@ -505,18 +505,26 @@ const leftSideThumbs = ref<InstanceType<typeof ItemThumbnailImage>[]>([])
 const rightSideThumbs = ref<InstanceType<typeof ItemThumbnailImage>[]>([])
 
 const loadThumbs = (thumbs: InstanceType<typeof ItemThumbnailImage>[]) => {
-    const element = (el) => el.closest('.main-image') ?? el
+    if (!thumbs.length) return
+
     const container = thumbs[0]?.$el.closest('.scroll')
-    if (container) {
-        const offsetTop0 = element(thumbs[0]?.$el).offsetTop
-        for (const thumb of thumbs) {
-            const el = element(thumb.$el)
-            thumb.inView =
-                el.offsetTop - offsetTop0 + el.offsetHeight > container.scrollTop &&
-                el.offsetTop - offsetTop0 < container.scrollTop + container.offsetHeight
+    if (!container) return
+
+    const containerTop = container.scrollTop
+    const containerBottom = containerTop + container.offsetHeight
+
+    thumbs.forEach((thumb) => {
+        const el = thumb.$el.closest('.main-image') || thumb.$el
+        const elTop = el.offsetTop
+        const elBottom = elTop + el.offsetHeight
+
+        // Determine if the element is within the visible area of the container
+        const inView = elBottom > containerTop && elTop < containerBottom
+        thumb.inView = inView
+        if (inView) {
             thumb.fetchItem()
         }
-    }
+    })
 }
 
 const handleLeftSideScroll = () => {
@@ -556,11 +564,17 @@ const loadLeftAndRightThumbs = () => {
     }, 100)
 }
 
-const SelectedTypeChange = async () => {
+const SelectedTypeChange = async (typo) => {
+    clear_all()
+    if (typo === 'Similarity') {
+        loading.value = true
+        await nextTick()
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        loading.value = false
+    }
+
     selectedIds.value = []
     coruptedImages.value = []
-    await nextTick()
-    updateSelection()
     if (
         selectedType.value !== 'Similarity' &&
         qualityCount.value !== datasetItemsCount.value &&
@@ -657,6 +671,7 @@ const updateSelection = () => {
 }
 
 const getImages = debounce(async () => {
+    clear_all()
     if (loading.value) return // Prevent function from running if it's already loading
     loading.value = true
     if (selectedType.value === 'Similarity') {
@@ -759,7 +774,16 @@ const sendToastMassage = (message_text: string, type_text: string) => {
     })
 }
 
+const clear_all = () => {
+    rightSideThumbs.value = []
+    leftSideThumbs.value = []
+    selectedIds.value = []
+    updateSelection()
+}
+
 const SelectedChange = () => {
+    clear_all()
+    clustersAll.value = []
     if (datasetItemsCount.value != featureSetDict.value[selected.value]) {
         sendToastMassage(
             'For selected feature set, number of items in dataset is not equal to number of items in feature set. Please rerun the feature vector extraction',
