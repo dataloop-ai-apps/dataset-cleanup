@@ -58,8 +58,12 @@ const fetchItem = async () => {
 const thumbnail = computed(() => {
     return item.value
         ? item.value.thumbnail
-        : 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#' +
-              Math.random()
+        : (
+            props.autoLoad
+            ? 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#' +
+                Math.random()
+            : null
+        )
 })
 
 const truncateNameWithExtension = (name: string, maxWidth: number) => {
@@ -137,6 +141,10 @@ defineExpose({
 
 .thumb-im img {
     border: 2px solid var(--dl-color-separator);
+}
+
+.thumb-im img:not([src]) {
+    visibility: hidden;
 }
 
 .checkbox {
