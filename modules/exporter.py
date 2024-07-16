@@ -216,6 +216,8 @@ class Exporter:
                 if file.endswith('.json'):
                     with zip_ref.open(file) as json_file:
                         data = json.load(json_file)
+                        name = data.get('name', '')
+                        thumbnail = data.get('thumbnail', '')
                         for feature_vec in data.get('itemVectors', []):
                             fs_id = feature_vec.get('featureSetId')
                             value = feature_vec.get('value')
@@ -224,9 +226,9 @@ class Exporter:
                             key = feature_sets.get(fs_id, fs_id)
 
                             if key not in feature_sets_export:
-                                feature_sets_export[key] = [{'itemId': item_id, 'value': value}]
+                                feature_sets_export[key] = [{'itemId': item_id, 'value': value, 'name': name, 'thumbnail': thumbnail}]
                             else:
-                                feature_sets_export[key].append({'itemId': item_id, 'value': value})
+                                feature_sets_export[key].append({'itemId': item_id, 'value': value, 'name': name, 'thumbnail': thumbnail})
                 self.progress = round(round((i + 1) / total_files * 45, 0) + 50)
 
         self.feature_sets_export = feature_sets_export
@@ -326,7 +328,8 @@ class Exporter:
         try:
             if return_ids:
                 items = dataset.items.list(filters=filters).all()
-                ids = [item.id for item in items]
+                ids = [{'itemId': item.id, 'name': item.name, 'thumbnail': item.thumbnail}
+                       for item in items]
                 return len(ids), ids
             else:
                 items = dataset.items.list(filters=filters)
