@@ -159,17 +159,28 @@
                     </div>
                     <div class="right-pannel">
                         <div class="right-pannel-inner scroll" @scrollend="handleRightSideScroll">
-                            <ItemThumbnailImage
-                                v-for="id in images"
-                                ref="rightSideThumbs"
-                                :key="id"
-                                :data-main="first2main[id]"
-                                :item-id="id"
-                                :checked="selectedIds.includes(id)"
-                                :size="thumbSize"
-                                @update:checked="handleCheckedUpdate(id)"
-                                @delete:item="deleteItem(id)"
-                            />
+                            <dl-virtual-scroll
+                                :items="imagesGrid"
+                                :virtual-scroll-item-size="thumbSize + 32"
+                                :virtual-scroll-sticky-size-start="20"
+                                :virtual-scroll-sticky-size-end="20"
+                            >
+                                <template #default="{ item, index }">
+                                    <div :key="'row' + index" style="display: flex">
+                                        <ItemThumbnailImage
+                                            v-for="id in item"
+                                            auto-load
+                                            :key="id"
+                                            :data-main="first2main[id]"
+                                            :item-id="id"
+                                            :checked="selectedIds.includes(id)"
+                                            :size="thumbSize"
+                                            @update:checked="handleCheckedUpdate(id)"
+                                            @delete:item="deleteItem(id)"
+                                        />
+                                    </div>
+                                </template>
+                            </dl-virtual-scroll>
                         </div>
                         <dl-slider
                             v-model="thumbSize"
@@ -291,6 +302,7 @@
 <script setup lang="ts">
 import { defineProps, onBeforeMount } from 'vue'
 import {
+    DlVirtualScroll,
     DlSelect,
     DlSpinner,
     DlSlider,
@@ -306,7 +318,6 @@ import EmptyState from './EmptyState.vue'
 import ReloadProgress from './ReloadProgress.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
 import debounce from './debounce'
-import { addItems } from './items'
 
 const options = ref([])
 const selected = ref('feature set 1')
@@ -404,6 +415,19 @@ const images = computed(() => {
         ids.push.apply(ids, cluster.items)
     }
     return ids
+})
+
+const imagesGrid = computed(() => {
+    const w = Math.max(1, window.innerWidth - 145)
+    const n = Math.max(1, Math.floor(w / (thumbSize.value + 22)))
+    const res = []
+    const ims = images.value
+    for (let i = 0; i < ims.length; i++) {
+        const j = Math.floor(i / n);
+        res[j] = res[j] ?? []
+        res[j][i % n] = ims[i]
+    }
+    return res
 })
 
 const first2main = computed(() => {
@@ -533,6 +557,7 @@ const handleLeftSideScroll = () => {
 }
 
 const handleRightSideScroll = (event: Event) => {
+    return; /// TODO
     loadThumbs(rightSideThumbs.value)
 
     const target = event.target as HTMLElement
@@ -679,12 +704,7 @@ const getImages = debounce(async () => {
         const response = await fetch(
             `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}`
         )
-        const clusters = await response.json()
-        for (const cluster of clusters) {
-            cluster.items = addItems(cluster.items)
-            cluster.main_item = addItems([cluster.main_item])[0]
-        }
-        clustersAll.value = clusters
+        clustersAll.value = await response.json()
         selectedIds.value = [...clustersAll.value[0].items]
         await nextTick()
         loadLeftAndRightThumbs()
@@ -711,7 +731,7 @@ const fetchCoruptedImages = async () => {
         }&min_v=${minmax.value.min}&max_v=${minmax.value.max}`
     )
     const result = await response.json()
-    coruptedImages.value = addItems(result.items)
+    coruptedImages.value = result.items
 }
 
 async function reset() {

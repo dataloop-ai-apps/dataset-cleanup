@@ -24,8 +24,7 @@
 
 <script setup lang="ts">
 import { DlTypography, DlCheckbox, DlTooltip } from '@dataloop-ai/components'
-import { SDKItem } from '@dataloop-ai/jssdk'
-import { fetchSDKItem } from './items'
+import { getItem, Item } from './items'
 import { defineExpose, defineProps, withDefaults } from 'vue'
 import { ref, computed, defineEmits, onUnmounted } from 'vue-demi'
 import debounce from './debounce'
@@ -43,11 +42,11 @@ const props = withDefaults(defineProps<Props>(), {
     size: 128
 })
 
-const item = ref<SDKItem | null>(null)
+const item = ref<Item>(null)
 const inView = ref<boolean>(false)
 const fetchItem = async () => {
     if ((props.autoLoad || inView.value) && props.itemId !== item.value?.id) {
-        const data = await fetchSDKItem(props.itemId)
+        const data = getItem(props.itemId)
         if (!data || Object.keys(data).length === 0) {
             emit('delete:item', props.itemId)
         }
