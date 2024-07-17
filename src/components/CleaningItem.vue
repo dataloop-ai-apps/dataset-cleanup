@@ -306,6 +306,7 @@ import EmptyState from './EmptyState.vue'
 import ReloadProgress from './ReloadProgress.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
 import debounce from './debounce'
+import { addItems } from './items'
 
 const options = ref([])
 const selected = ref('feature set 1')
@@ -515,7 +516,7 @@ const loadThumbs = (thumbs: InstanceType<typeof ItemThumbnailImage>[]) => {
 
     thumbs.forEach((thumb) => {
         const el = thumb.$el.closest('.main-image') || thumb.$el
-        const elTop = el.offsetTop
+        const elTop = el.offsetTop - thumbSize.value
         const elBottom = elTop + el.offsetHeight
 
         // Determine if the element is within the visible area of the container
@@ -678,7 +679,12 @@ const getImages = debounce(async () => {
         const response = await fetch(
             `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}`
         )
-        clustersAll.value = await response.json()
+        const clusters = await response.json()
+        for (const cluster of clusters) {
+            cluster.items = addItems(cluster.items)
+            cluster.main_item = addItems([cluster.main_item])[0]
+        }
+        clustersAll.value = clusters
         selectedIds.value = [...clustersAll.value[0].items]
         await nextTick()
         loadLeftAndRightThumbs()
@@ -705,7 +711,7 @@ const fetchCoruptedImages = async () => {
         }&min_v=${minmax.value.min}&max_v=${minmax.value.max}`
     )
     const result = await response.json()
-    coruptedImages.value = result.items
+    coruptedImages.value = addItems(result.items)
 }
 
 async function reset() {

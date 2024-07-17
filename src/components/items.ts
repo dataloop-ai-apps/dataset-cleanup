@@ -1,24 +1,17 @@
-import { SDKItem } from '@dataloop-ai/jssdk'
+export type Item = {
+    itemId: string
+    name: string
+    thumbnail: string
+}
+const itemsData: { [key: string]: Item } = {}
 
-const items: { [key: string]: Promise<SDKItem> } = {}
-
-function delay(ms: number) {
-    return new Promise(function (resolve) {
-        setTimeout(resolve, ms)
-    })
+export function addItems(items: Item[]): string[] {
+    for(let i = 0; i < items.length; i++) {
+        itemsData[items[i].itemId] = items[i]
+    }
+    return items.map(item => item.itemId)
 }
 
-export async function fetchSDKItem(itemId: string, attempts = 7) {
-    try {
-        const promise = items[itemId] ?? window.dl.items.get(itemId)
-        items[itemId] = promise
-        return await promise
-    } catch (error) {
-        if (attempts > 1) {
-            await delay(Math.ceil(300 * (1 + Math.random())))
-            return await fetchSDKItem(itemId, attempts - 1)
-        } else {
-            console.error('Error fetching item ' + itemId, error)
-        }
-    }
+export function getItem(id: string): Item {
+    return itemsData[id]
 }
