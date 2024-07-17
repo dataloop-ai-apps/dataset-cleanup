@@ -80,7 +80,8 @@ async def get_items(datasetId: str, featureSetName: str, similarity: float, type
         feature_vectors = exporter.feature_sets_export[featureSetName]
         values = np.array([item['value'] for item in feature_vectors])
         normalized_data = normalize(values, norm='l2')
-        item_ids = [item['itemId'] for item in feature_vectors]
+        item_ids = [{'itemId': item['itemId'], 'thumbnail': item['thumbnail'], 'name': item['name']}
+                    for item in feature_vectors]
         eps_value = similarity
 
         if type == 'Similarity':
