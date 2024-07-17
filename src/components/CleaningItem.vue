@@ -516,7 +516,7 @@ const loadThumbs = (thumbs: InstanceType<typeof ItemThumbnailImage>[]) => {
 
     thumbs.forEach((thumb) => {
         const el = thumb.$el.closest('.main-image') || thumb.$el
-        const elTop = el.offsetTop
+        const elTop = el.offsetTop - thumbSize.value
         const elBottom = elTop + el.offsetHeight
 
         // Determine if the element is within the visible area of the container
