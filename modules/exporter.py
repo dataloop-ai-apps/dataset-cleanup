@@ -218,6 +218,7 @@ class Exporter:
                         data = json.load(json_file)
                         name = data.get('name', '')
                         thumbnail = data.get('thumbnail', '')
+                        annotated = data.get('annotated', False)
                         for feature_vec in data.get('itemVectors', []):
                             fs_id = feature_vec.get('featureSetId')
                             value = feature_vec.get('value')
@@ -226,9 +227,11 @@ class Exporter:
                             key = feature_sets.get(fs_id, fs_id)
 
                             if key not in feature_sets_export:
-                                feature_sets_export[key] = [{'itemId': item_id, 'value': value, 'name': name, 'thumbnail': thumbnail}]
+                                feature_sets_export[key] = [{'itemId': item_id, 'value': value,
+                                                             'name': name, 'thumbnail': thumbnail, 'annotated': annotated}]
                             else:
-                                feature_sets_export[key].append({'itemId': item_id, 'value': value, 'name': name, 'thumbnail': thumbnail})
+                                feature_sets_export[key].append({'itemId': item_id, 'value': value, 'name': name,
+                                                                'thumbnail': thumbnail, 'annotated': annotated})
                 self.progress = round(round((i + 1) / total_files * 45, 0) + 50)
 
         self.feature_sets_export = feature_sets_export
@@ -328,7 +331,7 @@ class Exporter:
         try:
             if return_ids:
                 items = dataset.items.list(filters=filters).all()
-                ids = [{'itemId': item.id, 'name': item.name, 'thumbnail': item.thumbnail}
+                ids = [{'itemId': item.id, 'name': item.name, 'thumbnail': item.thumbnail, 'annotated': item.annotated}
                        for item in items]
                 return len(ids), ids
             else:

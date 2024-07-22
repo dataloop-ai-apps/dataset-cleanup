@@ -1,7 +1,7 @@
 <!-- Cleaning.vue -->
 <template>
     <div class="thumb-im" role="button" @click="handleClick">
-        <div class="image-thumb" :class="{ 'no-annotation': !item?.annotated }">
+        <div class="image-thumb" :class="{ 'no-annotation': annotated }">
             <DlCheckbox :model-value="props.checked" class="checkbox" />
             <img
                 :class="{ checked: props.checked }"
@@ -10,6 +10,7 @@
                 :width="size"
                 :height="size"
                 @load="fetchItem"
+                @error="error_thumbnail"
             />
         </div>
 
@@ -54,16 +55,20 @@ const fetchItem = async () => {
     }
 }
 
+const error_thumbnail = () => {
+    emit('delete:item', props.itemId)
+}
+
 const thumbnail = computed(() => {
     return item.value
         ? item.value.thumbnail
-        : (
-            props.autoLoad
-            ? 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#' +
-                Math.random()
-            : null
-        )
+        : props.autoLoad
+        ? 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#' +
+          Math.random()
+        : null
 })
+
+const annotated = computed(() => !item.value?.annotated)
 
 const truncateNameWithExtension = (name: string, maxWidth: number) => {
     const extensionMatch = name.match(/\.[^/.]+$/)
