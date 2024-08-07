@@ -6,7 +6,6 @@ import logging
 import json
 import time
 import io
-import zipfile
 import pytz
 import tempfile
 
@@ -217,7 +216,6 @@ class Exporter:
     def load_feature_sets(self):
         try:
             item = dl.items.get(item_id=self.export_item_id)
-            item_dir = item.download(local_path=f'./{self.export_item_id}.zip', save_locally=False)
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 item_dir = item.download(local_path=temp_dir, save_locally=True)
