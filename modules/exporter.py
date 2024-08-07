@@ -8,6 +8,7 @@ import time
 import io
 import zipfile
 import pytz
+import tempfile
 
 logger = logging.getLogger('[EXPORTER]')
 logging.basicConfig(level='INFO')
@@ -121,12 +122,18 @@ class Exporter:
         except Exception as e:
             logger.error(f"Error while waiting for command: {e}")
             self.status = 'error'
+            self.remove_active_exports()
 
     def start_export(self):
+        self.status = "running"
+        self.progress = 0
+        self.export_date = ""
+        self.export_item_id = ""
         payload = {
             # 'itemsQuery': {"filter": params.get("query", {}), "join": params.get("join", {})},
             'includeItemVectors': True,
-            "itemsVectorQuery": {'select': {"datasetId": 1, 'featureSetId': 1, 'value': 1}}
+            "itemsVectorQuery": {'select': {"datasetId": 1, 'featureSetId': 1, 'value': 1}},
+            'exportType': 'json'
         }
         success, response = dl.client_api.gen_request(req_type='post',
                                                       path='/datasets/{}/export'.format(self.dataset.id),
@@ -151,9 +158,9 @@ class Exporter:
         buffer = io.BytesIO()
         buffer.write(json.dumps({"commandId": command_id}).encode('utf-8'))
         buffer.name = "active_export.json"
-        logger.info(f"Uploading active_export.json to /.dataloop/exports/fv/{self.dataset.id}")
+        logger.info(f"Uploading active_export.json to /.dataloop/exports/fv_json/{self.dataset.id}")
         b_dataset.items.upload(local_path=buffer,
-                               remote_path=f'/.dataloop/exports/fv/{self.dataset.id}',
+                               remote_path=f'/.dataloop/exports/fv_json/{self.dataset.id}',
                                overwrite=True)
 
     def save_finished_export(self, item_id):
@@ -161,14 +168,14 @@ class Exporter:
         buffer = io.BytesIO()
         buffer.write(json.dumps({"OutputItemId": item_id}).encode('utf-8'))
         buffer.name = f"{item_id}.json"
-        logger.info(f"Uploading outputItemId to /.dataloop/exports/fv_done/{self.dataset.id}")
+        logger.info(f"Uploading outputItemId to /.dataloop/exports/fv_done_json/{self.dataset.id}")
         b_dataset.items.upload(local_path=buffer,
-                               remote_path=f'/.dataloop/exports/fv_done/{self.dataset.id}',
+                               remote_path=f'/.dataloop/exports/fv_done_json/{self.dataset.id}',
                                overwrite=True)
 
     def remove_active_exports(self):
         filters = dl.Filters(use_defaults=False)
-        filters.add(field='filename', values=f'/.dataloop/exports/fv/{self.dataset.id}/active_export.json')
+        filters.add(field='filename', values=f'/.dataloop/exports/fv_json/{self.dataset.id}/active_export.json')
         filters.page_size = 10
         b_dataset = self.dataset.project.datasets._get_binaries_dataset()
         items = b_dataset.items.list(filters=filters)
@@ -178,7 +185,7 @@ class Exporter:
 
     def check_active_exports(self):
         filters = dl.Filters(use_defaults=False)
-        filters.add(field='dir', values=f'/.dataloop/exports/fv/{self.dataset.id}/active_export.json')
+        filters.add(field='dir', values=f'/.dataloop/exports/fv_json/{self.dataset.id}/active_export.json')
         filters.page_size = 10
         b_dataset = self.dataset.project.datasets._get_binaries_dataset()
         items = b_dataset.items.list(filters=filters)
@@ -191,50 +198,61 @@ class Exporter:
 
     def find_last_export(self):
         filters = dl.Filters(use_defaults=False)
-        filters.add(field='dir', values=f'/.dataloop/exports/fv_done/{self.dataset.id}')
+        filters.add(field='dir', values=f'/.dataloop/exports/fv_done_json/{self.dataset.id}')
         filters.sort_by(field='createdAt', value=dl.FiltersOrderByDirection.DESCENDING)
         filters.page_size = 10
         b_dataset = self.dataset.project.datasets._get_binaries_dataset()
         items = b_dataset.items.list(filters=filters)
         if items.items_count != 0:
-            return items.items[0]
-        else:
-            return None
+            stored_output_item = items.items[0]
+            item_dir = stored_output_item.download(save_locally=False)
+            new_output_item_id = json.loads(item_dir.getvalue())['OutputItemId']
+            item = b_dataset.items.get(item_id=new_output_item_id)
+            if item.filename.endswith('.json'):
+                print(f"Found last export with item id: {new_output_item_id}")
+                return stored_output_item
+
+        return None
 
     def load_feature_sets(self):
-        item = dl.items.get(item_id=self.export_item_id)
-        item_dir = item.download(local_path=f'./{self.export_item_id}.zip', save_locally=False)
+        try:
+            item = dl.items.get(item_id=self.export_item_id)
+            item_dir = item.download(local_path=f'./{self.export_item_id}.zip', save_locally=False)
 
-        feature_sets = {fs.id: fs.name for fs in self.dataset.project.feature_sets.list().all()}
+            with tempfile.TemporaryDirectory() as temp_dir:
+                item_dir = item.download(local_path=temp_dir, save_locally=True)
+                with open(item_dir, 'r') as f:
+                    download_data = json.load(f)
 
-        feature_sets_export = {}
+            feature_sets = {fs.id: fs.name for fs in self.dataset.project.feature_sets.list().all()}
 
-        with zipfile.ZipFile(item_dir, 'r') as zip_ref:
-            json_files = [f for f in zip_ref.namelist() if f.endswith('.json')]
-            total_files = len(json_files)
-            for i, file in enumerate(json_files):
-                if file.endswith('.json'):
-                    with zip_ref.open(file) as json_file:
-                        data = json.load(json_file)
-                        name = data.get('name', '')
-                        thumbnail = data.get('thumbnail', '')
-                        annotated = data.get('annotated', False)
-                        for feature_vec in data.get('itemVectors', []):
-                            fs_id = feature_vec.get('featureSetId')
-                            value = feature_vec.get('value')
-                            item_id = data.get('id')
+            feature_sets_export = {}
 
-                            key = feature_sets.get(fs_id, fs_id)
+            total_files = len(download_data)
+            for i, data in enumerate(download_data):
+                name = data.get('name', '')
+                thumbnail = data.get('thumbnail', '')
+                annotated = data.get('annotated', False)
+                for feature_vec in data.get('itemVectors', []):
+                    fs_id = feature_vec.get('featureSetId')
+                    value = feature_vec.get('value')
+                    item_id = data.get('id')
 
-                            if key not in feature_sets_export:
-                                feature_sets_export[key] = [{'itemId': item_id, 'value': value,
-                                                             'name': name, 'thumbnail': thumbnail, 'annotated': annotated}]
-                            else:
-                                feature_sets_export[key].append({'itemId': item_id, 'value': value, 'name': name,
-                                                                'thumbnail': thumbnail, 'annotated': annotated})
-                self.progress = round(round((i + 1) / total_files * 45, 0) + 50)
+                    key = feature_sets.get(fs_id, fs_id)
 
-        self.feature_sets_export = feature_sets_export
+                    if key not in feature_sets_export:
+                        feature_sets_export[key] = [{'itemId': item_id, 'value': value,
+                                                    'name': name, 'thumbnail': thumbnail, 'annotated': annotated}]
+                    else:
+                        feature_sets_export[key].append({'itemId': item_id, 'value': value, 'name': name,
+                                                        'thumbnail': thumbnail, 'annotated': annotated})
+                    self.progress = round(round((i + 1) / total_files * 45, 0) + 50)
+
+            self.feature_sets_export = feature_sets_export
+        except Exception as e:
+            logger.error(f"Error while loading feature sets: {e}")
+            self.status = 'error'
+            raise
 
     def get_feature_sets_names(self):
         feature_dict = {}
@@ -310,6 +328,8 @@ class Exporter:
         except Exception as e:
             logger.error(f"Error while waiting for command: {e}")
             self.execution_running[exec_type]['status'] = 'error'
+            self.status = 'error'
+            raise
 
     def quality_score(self, qtype, min_v, max_v, limit=0, pagination=100, return_ids=False):
         dataset = self.dataset

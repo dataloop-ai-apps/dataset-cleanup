@@ -41,7 +41,7 @@ export default defineComponent({
     },
     emits: ['reload'],
     methods: {
-        onReloadClick () {
+        onReloadClick() {
             this.$emit('reload')
         }
     }

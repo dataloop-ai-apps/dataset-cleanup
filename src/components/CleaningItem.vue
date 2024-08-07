@@ -388,9 +388,13 @@ const AllItemsCountCorupted = computed(() => {
 
 const isDisabled = computed(() => {
     return (
-        ((options.value.length === 0 || loading.value) && selectedType.value === 'Similarity') ||
-        (qualityCount.value === 0 && selectedType.value !== 'Similarity') ||
-        props.progress != 1
+        ((options.value.length === 0 || loading.value) &&
+            (selectedType.value === 'Similarity' || selectedType.value === 'Anomalies')) ||
+        (qualityCount.value === 0 &&
+            selectedType.value !== 'Similarity' &&
+            selectedType.value !== 'Anomalies') ||
+        props.progress != 1 ||
+        props.lastUpdated === 'Error'
     )
 })
 

@@ -65,7 +65,7 @@ const updateStatus = async () => {
     if (data.status == 'error') {
         console.error('Error fetching feature vectors')
         lastUpdated.value = 'Error'
-        progressValue.value = 0
+        progressValue.value = 1
         return true
     }
     return completed
