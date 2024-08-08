@@ -134,27 +134,25 @@ onMounted(() => {
 
 const pollStatus = async () => {
     const interval = 1000
-    const maxAttempts = 600 // max 10 minutes
+    const maxAttempts = 600
     let attempts = 0
 
-    return new Promise<boolean>((resolve, reject) => {
-        const intervalId = setInterval(async () => {
-            attempts++
-            const completed = await updateStatus()
-            if (completed) {
-                buildReady.value = true
-                operationRunning.value = false
-                if (cleaningItemRef.value) {
-                    cleaningItemRef.value.reset()
-                }
-                clearInterval(intervalId)
-                resolve(true)
-            } else if (attempts >= maxAttempts) {
-                clearInterval(intervalId)
-                reject(new Error('Max attempts reached'))
+    const checkStatus = async () => {
+        attempts++
+        const completed = await updateStatus()
+        if (completed || attempts >= maxAttempts) {
+            buildReady.value = true
+            operationRunning.value = false
+            if (cleaningItemRef.value) {
+                cleaningItemRef.value.reset()
             }
-        }, interval)
-    })
+            return
+        } else {
+            setTimeout(checkStatus, interval)
+        }
+    }
+
+    checkStatus()
 }
 
 const handleReload = async () => {
