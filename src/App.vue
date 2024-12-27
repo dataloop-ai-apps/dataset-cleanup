@@ -8,7 +8,7 @@
                 v-if="datasetId"
                 ref="cleaningItemRef"
                 :dataset-id="datasetId"
-                :last-updated="lastUpdated"
+                :last-updated="formattedLastUpdated"
                 :progress="progressValue"
                 @trigger-refresh="handleEmptystateTrigger"
                 @trigger-reload="handleReload"
@@ -27,7 +27,7 @@ const contentIframe = ref<HTMLIFrameElement | null>(null)
 const isReady = ref<boolean>(false)
 const buildReady = ref<boolean>(false)
 const currentTheme = ref<ThemeType>(ThemeType.LIGHT)
-const lastUpdated = ref<string>('Never')
+const lastUpdated = ref<number>(0)
 const operationRunning = ref<boolean>(true)
 const progressValue = ref<number>(0)
 const datasetId = ref<string>(null)
@@ -40,6 +40,17 @@ function triggerCleaningMethod(data: any) {
         cleaningItemRef.value.deletedItemsRemove(data) // Call method on the child component
     }
 }
+
+const formattedLastUpdated = computed(() => {
+    const date = new Date(lastUpdated.value * 1000) // Convert to milliseconds
+    return new Intl.DateTimeFormat('default', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date)
+})
 
 const isDark = computed<boolean>(() => {
     return currentTheme.value === ThemeType.DARK
@@ -83,6 +94,7 @@ const handleInitialFrameLoading = async () => {
     buildReady.value = false
     try {
         if (datasetId.value) {
+            await fetch(`/api/export/run?datasetId=${datasetId.value}&cache=yes`)
             const existingStatus = await updateStatus()
             if (!existingStatus) {
                 await pollStatus()
@@ -168,7 +180,7 @@ const handleReload = async () => {
 
     progressValue.value = 0
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    fetch(`/api/export/run?datasetId=${datasetId.value}&timezone=${timezone}`)
+    fetch(`/api/export/run?datasetId=${datasetId.value}&&cache=no`)
     await pollStatus()
 }
 </script>
