@@ -1,29 +1,53 @@
+import json
+import logging
+import os
+import select
+import subprocess
+from collections import defaultdict
+
+import dtlpy as dl
+import numpy as np
+from fastapi import APIRouter, BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from modules.exporter import Exporter
-import dtlpy as dl
-import subprocess
-import logging
-import select
-import os
-import json
-from sklearn.preprocessing import normalize
 from sklearn.cluster import DBSCAN
-import numpy as np
-from collections import defaultdict
+from sklearn.preprocessing import normalize
+
+from modules.exporter import Exporter
 
 logger = logging.getLogger('[CLEANUP]')
 logging.basicConfig(level='INFO')
 
 
 class Runner(dl.BaseServiceRunner):
+    """
+    Runner class that extends the BaseServiceRunner.
+
+    This class is responsible for executing a bash script and capturing its output in real-time.
+
+    Methods
+    -------
+    __init__():
+        Initializes the Runner instance, prints the current working directory and its contents,
+        and starts the bash script 'start.sh'. Captures and prints the output of the script in real-time.
+        Handles KeyboardInterrupt to allow graceful termination by the user.
+
+    run():
+        Placeholder method to be implemented.
+    """
+
     def __init__(self):
         print(f'current path: {os.getcwd()}')
         print(f'list: {os.listdir(os.getcwd())}')
         print(f'current path: {os.getcwd()}')
-        proc = subprocess.Popen('bash start.sh', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
+        proc = subprocess.Popen(
+            'bash start.sh',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            text=True,
+        )
         try:
             while True:
                 # Use select to wait for output
@@ -41,24 +65,11 @@ class Runner(dl.BaseServiceRunner):
         finally:
             proc.terminate()
 
-    def run(self):
-        ...
-
-
-class ExporterHandles:
-    def __init__(self):
-        self.exporters = dict()
-
-    def get(self, dataset_id):
-        if dataset_id not in self.exporters:
-            self.exporters[dataset_id] = Exporter(dataset_id=dataset_id)
-        print(self.exporters)
-        return self.exporters[dataset_id]
+    def run(self): ...
 
 
 app = FastAPI()
 router = APIRouter()
-exporters_handler = ExporterHandles()
 
 origins = [
     "*",  # allow all
@@ -74,20 +85,63 @@ app.add_middleware(
 
 
 @router.get("/get_items")
-async def get_items(datasetId: str, featureSetName: str, similarity: float, type: str, pagination: int = 0, limit: int = 10, min_v: float = 0, max_v: float = 1.0, clusterSize: int = 2):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
+async def get_items(
+    datasetId: str,
+    featureSetName: str,
+    similarity: float,
+    type: str,
+    pagination: int = 0,
+    limit: int = 10,
+    min_v: float = 0,
+    max_v: float = 1.0,
+    clusterSize: int = 2,
+):
+    """
+    Retrieves items from a dataset based on the specified parameters.
+
+    Args:
+        datasetId (str): The ID of the dataset to retrieve items from.
+        featureSetName (str): The name of the feature set to use.
+        similarity (float): The similarity threshold to use for clustering.
+        type (str): The type of items to retrieve (e.g., 'Similarity', 'Anomalies', 'Darkness/Brightness').
+        pagination (int): The pagination index to use.
+        limit (int): The number of items to retrieve.
+        min_v (float): The minimum value to use for filtering.
+        max_v (float): The maximum value to use for filtering.
+        clusterSize (int): The minimum number of items to include in a cluster.
+
+    Returns:
+        HTMLResponse: An HTML response containing the items in JSON format with an HTTP status code of 200.
+
+    Notes:
+        The 'type' parameter can be one of the following:
+            - 'Similarity': Retrieves similar items based on the feature set and similarity threshold.
+            - 'Anomalies': Retrieves anomalous items based on the feature set and similarity threshold.
+            - 'Darkness/Brightness': Retrieves items based on the darkness/brightness quality score.
+    """
+
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     if type == 'Similarity' or type == 'Anomalies':
         feature_vectors = exporter.feature_sets_export[featureSetName]
         values = np.array([item['value'] for item in feature_vectors])
         normalized_data = normalize(values, norm='l2')
-        item_ids = [{'itemId': item['itemId'], 'thumbnail': item['thumbnail'], 'name': item['name'], 'annotated': item['annotated']}
-                    for item in feature_vectors]
+        item_ids = [
+            {
+                'itemId': item['itemId'],
+                'thumbnail': item['thumbnail'],
+                'name': item['name'],
+                'annotated': item['annotated'],
+            }
+            for item in feature_vectors
+        ]
         eps_value = similarity
 
         if type == 'Similarity':
 
             min_samples_value = clusterSize
-            dbscan = DBSCAN(eps=eps_value, min_samples=min_samples_value, metric='cosine')
+            dbscan = DBSCAN(
+                eps=eps_value, min_samples=min_samples_value, metric='cosine'
+            )
 
             clusters = dbscan.fit_predict(normalized_data)
 
@@ -98,7 +152,9 @@ async def get_items(datasetId: str, featureSetName: str, similarity: float, type
             # Prepare the output data structure
             output_clusters = []
             for cluster, items in cluster_dict.items():
-                if cluster != -1 and len(items) >= 2:  # Filter out noise and ensure at least two items
+                if (
+                    cluster != -1 and len(items) >= 2
+                ):  # Filter out noise and ensure at least two items
                     # Split the first item and the rest
                     main_item = items[0]
                     rest_items = items[1:]
@@ -116,92 +172,166 @@ async def get_items(datasetId: str, featureSetName: str, similarity: float, type
             output_clusters.sort(key=lambda x: len(x['items']), reverse=True)
 
             # remove the clusters with less items then clusterSize
-            output_clusters = [cluster for cluster in output_clusters if len(cluster['items']) >= clusterSize - 1]
+            output_clusters = [
+                cluster
+                for cluster in output_clusters
+                if len(cluster['items']) >= clusterSize - 1
+            ]
 
             # first cluster have is_choosed = True
             if len(output_clusters) > 0:
                 output_clusters[0]['is_choosed'] = True
             else:
                 # create dummy cluster
-                output_clusters.append({
-                    'key': 'Cluster 0',
-                    'main_item': '',
-                    'items': [],
-                    'is_choosed': True,
-                })
+                output_clusters.append(
+                    {
+                        'key': 'Cluster 0',
+                        'main_item': '',
+                        'items': [],
+                        'is_choosed': True,
+                    }
+                )
 
             return HTMLResponse(json.dumps(output_clusters, indent=2), status_code=200)
 
         else:
             min_samples_value = 2
-            dbscan = DBSCAN(eps=eps_value, min_samples=min_samples_value, metric='cosine')
+            dbscan = DBSCAN(
+                eps=eps_value, min_samples=min_samples_value, metric='cosine'
+            )
             clusters = dbscan.fit_predict(normalized_data)
-            ids = [item_id for item_id, cluster in zip(item_ids, clusters) if cluster == -1]
+            ids = [
+                item_id for item_id, cluster in zip(item_ids, clusters) if cluster == -1
+            ]
 
-            return HTMLResponse(json.dumps({'items': ids, 'total': len(ids)}, indent=2), status_code=200)
+            return HTMLResponse(
+                json.dumps({'items': ids, 'total': len(ids)}, indent=2), status_code=200
+            )
 
     else:
-        items_count, ids = exporter.quality_score(type, min_v, max_v, pagination, limit, True)
-        return HTMLResponse(json.dumps({'items': ids, 'total': items_count}, indent=2), status_code=200)
+        items_count, ids = exporter.quality_score(
+            type, min_v, max_v, pagination, limit, True
+        )
+        return HTMLResponse(
+            json.dumps({'items': ids, 'total': items_count}, indent=2), status_code=200
+        )
 
 
 @router.get("/export/status")
 async def export_status(datasetId: str):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
+    """
+    Export the status of a dataset.
+
+    This asynchronous function creates an Exporter instance for the given dataset ID,
+    retrieves the export progress, last update date, and status, and returns this information
+    as an HTML response in JSON format.
+
+    Args:
+        datasetId (str): The ID of the dataset to export the status for.
+
+    Returns:
+        HTMLResponse: An HTML response containing the export status in JSON format with a status code of 200.
+    """
+
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     status = {
-        'progress': 100 if exporter.status == 'ready' else int(exporter.progress),
-        'exportDate': exporter.export_date,
-        'status': exporter.status,
-        'exportItemId': exporter.export_item_id
+        'progress': int(exporter.progress),
+        'exportDate': exporter.last_update,
+        'status': exporter.status.value,
     }
-    logger.info(f"Returning status: {status}")
+    logger.info("Returning status: %s", status)
     return HTMLResponse(json.dumps(status, indent=2), status_code=200)
 
 
 @router.get("/export/run")
-async def export_run(datasetId: str, timezone: str):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
-    exporter.timezone = timezone
-    exporter.status = "starting"
+async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTasks):
+    """
+    Initiates an export run for the given dataset.
+
+    Args:
+        datasetId (str): The ID of the dataset to be exported.
+        cache (str): Indicates whether to use cache during the export process.
+        background_tasks (BackgroundTasks): The background tasks manager to handle asynchronous tasks.
+
+    Returns:
+        HTMLResponse: A response indicating that the export process has started.
+    """
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     exporter.progress = 0
-    exporter.start_export()
+    background_tasks.add_task(exporter.check_and_run, use_cache=cache)
     return HTMLResponse(json.dumps({'status': 'started'}), status_code=200)
 
 
 @router.get("/available_feature_sets")
 async def available_feature_sets(datasetId: str):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
+    """
+    Retrieve the available feature sets for a given dataset.
+
+    Args:
+        datasetId (str): The ID of the dataset for which to retrieve feature sets.
+
+    Returns:
+        HTMLResponse: An HTML response containing a JSON-encoded list of feature set names and a status code of 200.
+    """
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     feature_sets = exporter.get_feature_sets_names()
     return HTMLResponse(json.dumps(feature_sets), status_code=200)
 
 
 @router.get("/start_execution")
 async def start_execution(datasetId: str, exec_type: str):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
+    """
+    Starts the execution of a dataset export process.
+    Args:
+        datasetId (str): The ID of the dataset to be exported.
+        exec_type (str): The type of execution to be performed.
+    Returns:
+        HTMLResponse: A response object containing the status of the execution process in JSON format.
+    """
+
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     exporter.start_execution(exec_type)
     status = {
         'progress': exporter.execution_running.get(exec_type)['progress'],
         'status': exporter.execution_running.get(exec_type)['status'],
-        'full_status': exporter.execution_running.get(exec_type)['full_status']
-
+        'full_status': exporter.execution_running.get(exec_type)['full_status'],
     }
     return HTMLResponse(json.dumps(status), status_code=200)
 
 
 @router.get("/get_execution_status")
 async def get_execution_status(datasetId: str, exec_type: str):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
+    """
+    Asynchronously retrieves the execution status of a dataset export operation.
+
+    Args:
+        datasetId (str): The unique identifier of the dataset.
+        exec_type (str): The type of execution to check the status for.
+
+    Returns:
+        HTMLResponse: A response object containing the execution status in JSON format with a status code of 200.
+    """
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     status = {
         'progress': exporter.execution_running.get(exec_type)['progress'],
         'status': exporter.execution_running.get(exec_type)['status'],
-        'full_status': exporter.execution_running.get(exec_type)['full_status']
+        'full_status': exporter.execution_running.get(exec_type)['full_status'],
     }
     return HTMLResponse(json.dumps(status), status_code=200)
 
 
 @router.get("/get_quality_score_exist")
 async def get_quality_score_exist(datasetId: str):
-    exporter: Exporter = exporters_handler.get(dataset_id=datasetId)
+    """
+    Asynchronously retrieves the quality score for a given dataset.
+
+    Args:
+        datasetId (str): The ID of the dataset to retrieve the quality score for.
+
+    Returns:
+        HTMLResponse: A response object containing the quality score in JSON format and a status code of 200.
+    """
+    exporter: Exporter = Exporter(dataset_id=datasetId)
     items_count = exporter.quality_score('Darkness/Brightness', 0, 1)
     status = items_count
     return HTMLResponse(json.dumps(status), status_code=200)
@@ -209,7 +339,9 @@ async def get_quality_score_exist(datasetId: str):
 
 app.include_router(router, prefix='/api')
 
-app.mount("/cleanup", StaticFiles(directory="panels/cleanup", html=True), name='cleanup')
+app.mount(
+    "/cleanup", StaticFiles(directory="panels/cleanup", html=True), name='cleanup'
+)
 
 
 if __name__ == '__main__':
