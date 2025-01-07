@@ -6,4 +6,4 @@ RUN pip install --user  \
     uvicorn  \
     dtlpy \
     scikit-learn \
-    https://storage.googleapis.com/dtlpy/single-export-be/dtlpy_exporter-0.1.1-py3-none-any.whl
+    https://storage.googleapis.com/dtlpy/single-export-be/dtlpy_exporter-0.1.2-py3-none-any.whl
