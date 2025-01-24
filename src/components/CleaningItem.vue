@@ -201,10 +201,7 @@
         </div>
         <div
             v-if="
-                !loading &&
-                    showMainContent &&
-                    (selectedType !== 'Similarity' || selectedType !== 'Anomalies') &&
-                    props.progress == 1
+                !loading && showMainContent && selectedType !== 'Similarity' && props.progress == 1
             "
         >
             <EmptyState
@@ -213,7 +210,9 @@
                 text1="No results were found for the selected filters"
                 text2="Try to filter different options to find what you’re looking for"
             />
-            <div v-else-if="qualityCount > 0">
+            <div
+                v-else-if="qualityCount > 0 || (selectedType == 'Anomalies' && options.length > 0)"
+            >
                 <div class="select-all">
                     <DlCheckbox
                         v-model="SelectAllCorupted"
@@ -275,6 +274,10 @@
             </div>
             <div v-if="qualityCount == 0">
                 <EmptyState
+                    v-if="
+                        selectedType == 'Darkness/Brightness' ||
+                            selectedType == 'Blurriness/Sharpness'
+                    "
                     :dataset-id="props.datasetId"
                     exec-type="quality-score-generator"
                     text1="No Quality Score In Dataset"
