@@ -42,8 +42,8 @@
                 :class="{ invisible: selectedType !== 'Anomalies' }"
                 class="slider w-20"
                 text="Minimal Distance"
-                :min="0.3"
-                :max="0.5"
+                :min="0.5"
+                :max="1"
                 :step="0.001"
             />
 
@@ -201,7 +201,10 @@
         </div>
         <div
             v-if="
-                !loading && showMainContent && selectedType !== 'Similarity' && props.progress == 1
+                !loading &&
+                    showMainContent &&
+                    (selectedType !== 'Similarity' || selectedType !== 'Anomalies') &&
+                    props.progress == 1
             "
         >
             <EmptyState

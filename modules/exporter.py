@@ -9,7 +9,8 @@ import io
 import pytz
 import tempfile
 from dtlpy_exporter import ExportBase, ExportStatus
-
+from sklearn.preprocessing import normalize
+from faiss import IndexHNSWFlat,METRIC_ABS_INNER_PRODUCT
 logger = logging.getLogger('[EXPORTER]')
 logging.basicConfig(level='INFO')
 
@@ -61,6 +62,8 @@ class Exporter(ExportBase):
             # status
 
             self.feature_sets_export = {}
+            self.distance = {}
+            self.indices = {}
 
     def process_data(self, **kwargs):
         """
@@ -122,9 +125,26 @@ class Exporter(ExportBase):
                                 'annotated': annotated,
                             }
                         )
-                    self.progress = round(round((i + 1) / total_files * 45, 0) + 50)
+                    self.progress = round(round((i + 1) / total_files * 40, 0) + 50)
+            
+            for key, value in feature_sets_export.items():
+
+                values = np.array([item['value'] for item in feature_sets_export[key]])
+                normalized_data = normalize(values, norm='l2')
+                large_k = min(len(normalized_data), 100)
+                dimension = normalized_data.shape[1]
+                hnsw_index = IndexHNSWFlat(dimension, 32)  # 32 = connectivity parameter
+                hnsw_index.metric_type = METRIC_ABS_INNER_PRODUCT
+                hnsw_index.hnsw.efSearch = 50  # Controls the search accuracy/speed tradeoff
+                hnsw_index.add(normalized_data)
+                distances, indices = hnsw_index.search(normalized_data, k=large_k)
+                self.distance[key] = distances
+                self.indices[key] = indices
+
+            self.progress = 95
 
             self.feature_sets_export = feature_sets_export
+
         except Exception as e:
             logger.error("Error while loading feature sets: %s", e)
             self.status = ExportStatus.ERROR
