@@ -42,8 +42,8 @@
                 :class="{ invisible: selectedType !== 'Anomalies' }"
                 class="slider w-20"
                 text="Minimal Distance"
-                :min="0.3"
-                :max="0.5"
+                :min="0.5"
+                :max="1"
                 :step="0.001"
             />
 
@@ -210,7 +210,9 @@
                 text1="No results were found for the selected filters"
                 text2="Try to filter different options to find what you’re looking for"
             />
-            <div v-else-if="qualityCount > 0">
+            <div
+                v-else-if="qualityCount > 0 || (selectedType == 'Anomalies' && options.length > 0)"
+            >
                 <div class="select-all">
                     <DlCheckbox
                         v-model="SelectAllCorupted"
@@ -272,6 +274,10 @@
             </div>
             <div v-if="qualityCount == 0">
                 <EmptyState
+                    v-if="
+                        selectedType == 'Darkness/Brightness' ||
+                            selectedType == 'Blurriness/Sharpness'
+                    "
                     :dataset-id="props.datasetId"
                     exec-type="quality-score-generator"
                     text1="No Quality Score In Dataset"

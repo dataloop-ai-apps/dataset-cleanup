@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from sklearn.cluster import DBSCAN
+from faiss import   IndexFlatIP,IndexHNSWFlat,METRIC_INNER_PRODUCT
 from sklearn.preprocessing import normalize
 
 from modules.exporter import Exporter
@@ -123,8 +123,6 @@ async def get_items(
     exporter: Exporter = Exporter(dataset_id=datasetId)
     if type == 'Similarity' or type == 'Anomalies':
         feature_vectors = exporter.feature_sets_export[featureSetName]
-        values = np.array([item['value'] for item in feature_vectors])
-        normalized_data = normalize(values, norm='l2')
         item_ids = [
             {
                 'itemId': item['itemId'],
@@ -138,45 +136,52 @@ async def get_items(
 
         if type == 'Similarity':
 
-            min_samples_value = clusterSize
-            dbscan = DBSCAN(
-                eps=eps_value, min_samples=min_samples_value, metric='cosine'
-            )
-
-            clusters = dbscan.fit_predict(normalized_data)
-
             cluster_dict = defaultdict(list)
-            for item_id, cluster in zip(item_ids, clusters):
-                cluster_dict[cluster].append(item_id)
+
+            # Determine clusters based on eps_value
+            for i, (dist, idx) in enumerate(zip(exporter.distance[featureSetName], exporter.indices[featureSetName])):
+                # Since distances are sorted, we can stop checking once we exceed eps_value
+                neighbors = []
+                for j, d in zip(idx, dist):
+                    if abs(d) > eps_value:
+                        break
+                    neighbors.append(j)
+                cluster_dict[i].extend(neighbors)
+
+            # Sort clusters by size
+            sorted_clusters = sorted(cluster_dict.items(), key=lambda x: len(x[1]), reverse=True)
+
+            # Use a set to track used items
+            used_items = set()
 
             # Prepare the output data structure
             output_clusters = []
-            for cluster, items in cluster_dict.items():
-                if (
-                    cluster != -1 and len(items) >= 2
-                ):  # Filter out noise and ensure at least two items
-                    # Split the first item and the rest
-                    main_item = items[0]
-                    rest_items = items[1:]
+            cluster_id = 0
+            limit = 2000
+            for _, members in sorted_clusters:
+                # Remove used members
+                unique_members = [m for m in members if m not in used_items]
+                if len(unique_members) >= clusterSize:
+                    # Create a new cluster
+                    main_item = item_ids[unique_members[0]]
+                    rest_items = [item_ids[m] for m in unique_members[1:]]
 
-                    # Create the structured dictionary
                     cluster_info = {
-                        'key': f"Cluster {cluster}",
+                        'key': f"Cluster {cluster_id}",
                         'main_item': main_item,
                         'items': rest_items,
                         'is_choosed': False,
                     }
                     output_clusters.append(cluster_info)
 
+                    # Mark members as used
+                    used_items.update(unique_members)
+                    cluster_id += 1
+                    if len(used_items) > limit:
+                        break
+
             # Sorting clusters by the number of items (descending order)
             output_clusters.sort(key=lambda x: len(x['items']), reverse=True)
-
-            # remove the clusters with less items then clusterSize
-            output_clusters = [
-                cluster
-                for cluster in output_clusters
-                if len(cluster['items']) >= clusterSize - 1
-            ]
 
             # first cluster have is_choosed = True
             if len(output_clusters) > 0:
@@ -195,13 +200,9 @@ async def get_items(
             return HTMLResponse(json.dumps(output_clusters, indent=2), status_code=200)
 
         else:
-            min_samples_value = 2
-            dbscan = DBSCAN(
-                eps=eps_value, min_samples=min_samples_value, metric='cosine'
-            )
-            clusters = dbscan.fit_predict(normalized_data)
             ids = [
-                item_id for item_id, cluster in zip(item_ids, clusters) if cluster == -1
+                item_ids[i] for i, dist in enumerate(exporter.distance[featureSetName])
+                if dist[1] > eps_value  # Adjust for cosine similarity
             ]
 
             return HTMLResponse(
