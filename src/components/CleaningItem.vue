@@ -22,7 +22,7 @@
                     class="slider w-100-120px"
                     text="Similarity"
                     :min="0.001"
-                    :max="0.15"
+                    :max="0.3"
                     :step="0.001"
                 />
 

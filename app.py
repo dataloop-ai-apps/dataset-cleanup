@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from faiss import   IndexFlatIP,IndexHNSWFlat,METRIC_INNER_PRODUCT
+from faiss import IndexFlatIP, IndexHNSWFlat, METRIC_INNER_PRODUCT
 from sklearn.preprocessing import normalize
 
 from modules.exporter import Exporter
@@ -139,7 +139,9 @@ async def get_items(
             cluster_dict = defaultdict(list)
 
             # Determine clusters based on eps_value
-            for i, (dist, idx) in enumerate(zip(exporter.distance[featureSetName], exporter.indices[featureSetName])):
+            for i, (dist, idx) in enumerate(
+                zip(exporter.distance[featureSetName], exporter.indices[featureSetName])
+            ):
                 # Since distances are sorted, we can stop checking once we exceed eps_value
                 neighbors = []
                 for j, d in zip(idx, dist):
@@ -149,7 +151,9 @@ async def get_items(
                 cluster_dict[i].extend(neighbors)
 
             # Sort clusters by size
-            sorted_clusters = sorted(cluster_dict.items(), key=lambda x: len(x[1]), reverse=True)
+            sorted_clusters = sorted(
+                cluster_dict.items(), key=lambda x: len(x[1]), reverse=True
+            )
 
             # Use a set to track used items
             used_items = set()
@@ -157,7 +161,7 @@ async def get_items(
             # Prepare the output data structure
             output_clusters = []
             cluster_id = 0
-            limit = 2000
+            limit = 5000
             for _, members in sorted_clusters:
                 # Remove used members
                 unique_members = [m for m in members if m not in used_items]
@@ -201,7 +205,8 @@ async def get_items(
 
         else:
             ids = [
-                item_ids[i] for i, dist in enumerate(exporter.distance[featureSetName])
+                item_ids[i]
+                for i, dist in enumerate(exporter.distance[featureSetName])
                 if dist[1] > eps_value  # Adjust for cosine similarity
             ]
 
