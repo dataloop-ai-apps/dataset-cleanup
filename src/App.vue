@@ -144,7 +144,7 @@ onMounted(() => {
     })
 })
 
-const pollStatus = async (interval = 1000, maxAttempts = 600) => {
+const pollStatus = async (interval = 1000, maxAttempts = 3600) => {
     let attempts = 0
 
     const checkStatus = async () => {

@@ -81,7 +81,7 @@
                 v-if="options.length > 0 && noEmptyClusters.length === 0"
                 icon="icon-dl-item-filled"
                 text1="No results were found for the selected filters"
-                text2="Try to filter different options to find what you’re looking for"
+                text2="Try to filter different options to find what you're looking for"
             />
             <div v-else-if="options.length > 0">
                 <div class="select-all">
@@ -109,22 +109,18 @@
                         max-width="250px"
                         :label="AllItemsCount + ' item' + (AllItemsCount > 1 ? 's' : '')"
                     />
-                    <DlIcon
-                        v-if="selectedIds.length > 0"
-                        icon="icon-dl-right-chevron"
-                        size="20px"
-                    />
+                    <DlIcon v-if="selectedIds.size > 0" icon="icon-dl-right-chevron" size="20px" />
 
                     <DlChip
-                        v-if="selectedIds.length > 0"
+                        v-if="selectedIds.size > 0"
                         color="#32766E"
                         max-width="250px"
                         :removable="true"
                         :label="
                             'Selected ' +
-                                selectedIds.length +
+                                selectedIds.size +
                                 ' item' +
-                                (selectedIds.length > 1 ? 's' : '')
+                                (selectedIds.size > 1 ? 's' : '')
                         "
                         @remove="removeSelected"
                     />
@@ -165,22 +161,36 @@
                                 :key="id"
                                 :data-main="first2main[id]"
                                 :item-id="id"
-                                :checked="selectedIds.includes(id)"
+                                :checked="selectedIds.has(id)"
                                 :size="thumbSize"
                                 @update:checked="handleCheckedUpdate(id)"
                                 @delete:item="deleteItem(id)"
                             />
                         </div>
-                        <dl-slider
-                            v-model="thumbSize"
-                            class="thumb-size"
-                            :min="72"
-                            :max="268"
-                            :step="28"
-                            style="white-space: nowrap"
-                            text="Thumb size"
-                            slim
-                        />
+                        <div class="pagination-controls">
+                            <dl-slider
+                                v-model="thumbSize"
+                                class="thumb-size"
+                                :min="72"
+                                :max="268"
+                                :step="28"
+                                style="white-space: nowrap"
+                                text="Thumb size"
+                                slim
+                            />
+
+                            <DlPagination
+                                v-model="similarityPage"
+                                class="paginatio-whole"
+                                :total-items="AllItemsCount"
+                                :rows-per-page="similarityRowsPerPage"
+                                :boundary-links="true"
+                                :boundary-numbers="true"
+                                :direction-links="true"
+                                :with-quick-navigation="true"
+                                @update:model-value="rightPannelScrollToTop"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -208,7 +218,7 @@
                 v-if="qualityCount > 0 && coruptedImagesLength === 0"
                 icon="icon-dl-item-filled"
                 text1="No results were found for the selected filters"
-                text2="Try to filter different options to find what you’re looking for"
+                text2="Try to filter different options to find what you're looking for"
             />
             <div
                 v-else-if="qualityCount > 0 || (selectedType == 'Anomalies' && options.length > 0)"
@@ -227,22 +237,18 @@
                             AllItemsCountCorupted + ' item' + (AllItemsCountCorupted > 1 ? 's' : '')
                         "
                     />
-                    <DlIcon
-                        v-if="selectedIds.length > 0"
-                        icon="icon-dl-right-chevron"
-                        size="20px"
-                    />
+                    <DlIcon v-if="selectedIds.size > 0" icon="icon-dl-right-chevron" size="20px" />
 
                     <DlChip
-                        v-if="selectedIds.length > 0"
+                        v-if="selectedIds.size > 0"
                         color="#32766E"
                         max-width="250px"
                         :removable="true"
                         :label="
                             'Selected ' +
-                                selectedIds.length +
+                                selectedIds.size +
                                 ' item' +
-                                (selectedIds.length > 1 ? 's' : '')
+                                (selectedIds.size > 1 ? 's' : '')
                         "
                         @remove="removeSelected"
                     />
@@ -253,7 +259,7 @@
                         :key="id"
                         auto-load
                         :item-id="id"
-                        :checked="selectedIds.includes(id)"
+                        :checked="selectedIds.has(id)"
                         @update:checked="handleCheckedUpdate(id)"
                         @delete:item="deleteItemCorupted(id)"
                     />
@@ -333,7 +339,9 @@ const qualityCount = ref(0)
 type Cluster = {
     key: string
     main_item: string
-    items: string[] // assuming each item is identified by a string ID
+    items: string[]
+    is_choosed: boolean
+    page: number
 }
 const emit = defineEmits(['trigger-reload', 'trigger-refresh'])
 
@@ -357,8 +365,17 @@ defineExpose({
 })
 
 const noEmptyClusters = computed(() => {
-    return clustersAll.value.filter((cluster) => cluster.main_item !== '')
+    return clustersAll.value.filter(
+        (cluster) => cluster.main_item !== '' && cluster.page === similarityPage.value
+    )
 })
+
+const rightPannelScrollToTop = async () => {
+    const right_pannel = document.querySelector(`.actions .right-pannel-inner`)
+    // scroll smoothly to the top
+    right_pannel.scrollTo({ top: 0, behavior: 'smooth' })
+    loadLeftAndRightThumbs()
+}
 
 const triggerRefresh = () => {
     emit('trigger-refresh')
@@ -380,6 +397,14 @@ const thumbSize = ref(128)
 const coruptPage = ref(1)
 
 const rowsPerPage = ref(25)
+
+const similarityPage = ref(1)
+const similarityRowsPerPage = computed(() => {
+    // get page from last cluster
+    const lastCluster = clustersAll.value[clustersAll.value.length - 1]
+    const page = lastCluster.page
+    return Math.ceil(AllItemsCount.value / page)
+})
 
 const AllItemsCount = computed(() => {
     return clustersAll.value.reduce((acc, cluster) => {
@@ -406,7 +431,7 @@ const isDisabled = computed(() => {
 
 const clustersAll = ref<Cluster[]>([])
 
-const selectedIds = ref<string[]>([])
+const selectedIds = ref(new Set<string>())
 
 const images = computed(() => {
     const ids: string[] = []
@@ -428,7 +453,7 @@ const allChecked = computed({
     get() {
         const checkboxes: { [key: string]: string } = {}
         const isSelected = function (id: string) {
-            return selectedIds.value.includes(id)
+            return selectedIds.value.has(id)
         }
         for (const cluster of clustersAll.value) {
             checkboxes[cluster.key] = cluster.items.every(isSelected)
@@ -444,11 +469,11 @@ const allChecked = computed({
 
 const SelectAll = computed({
     get: () => {
-        if (selectedIds.value.length === 0) {
+        if (selectedIds.value.size === 0) {
             return 'none'
         }
         return clustersAll.value.every((cluster) =>
-            cluster.items.every((id) => selectedIds.value.includes(id))
+            cluster.items.every((id) => selectedIds.value.has(id))
         )
             ? 'all'
             : 'some'
@@ -457,13 +482,13 @@ const SelectAll = computed({
         if (value === 'all') {
             clustersAll.value.forEach((cluster) => {
                 cluster.items.forEach((id) => {
-                    if (!selectedIds.value.includes(id)) {
-                        selectedIds.value.push(id)
+                    if (!selectedIds.value.has(id)) {
+                        selectedIds.value.add(id)
                     }
                 })
             })
         } else {
-            selectedIds.value = []
+            selectedIds.value.clear()
         }
         updateSelection()
     }
@@ -471,20 +496,20 @@ const SelectAll = computed({
 
 const SelectAllCorupted = computed({
     get: () => {
-        if (selectedIds.value.length === 0) {
+        if (selectedIds.value.size === 0) {
             return false
         }
-        return coruptedImages.value.every((id) => selectedIds.value.includes(id))
+        return coruptedImages.value.every((id) => selectedIds.value.has(id))
     },
     set: (value) => {
         if (value) {
             coruptedImages.value.forEach((id) => {
-                if (!selectedIds.value.includes(id)) {
-                    selectedIds.value.push(id)
+                if (!selectedIds.value.has(id)) {
+                    selectedIds.value.add(id)
                 }
             })
         } else {
-            selectedIds.value = []
+            selectedIds.value.clear()
         }
         updateSelection()
     }
@@ -584,7 +609,7 @@ const SelectedTypeChange = async (typo) => {
         loading.value = false
     }
 
-    selectedIds.value = []
+    selectedIds.value.clear()
     coruptedImages.value = []
     if (
         selectedType.value !== 'Similarity' &&
@@ -608,14 +633,11 @@ const visibleCoruptedImages = computed(() => {
 })
 
 const removeSelected = () => {
-    selectedIds.value = []
+    selectedIds.value.clear()
     updateSelection()
 }
 const deleteItem = (itemId: string) => {
-    const index = selectedIds.value.indexOf(itemId)
-    if (index !== -1) {
-        selectedIds.value.splice(index, 1)
-    }
+    selectedIds.value.delete(itemId)
     // delete from clusters
     clustersAll.value.forEach((cluster) => {
         const index = cluster.items.indexOf(itemId)
@@ -627,10 +649,7 @@ const deleteItem = (itemId: string) => {
 }
 
 const deleteItemCorupted = (itemId: string) => {
-    const index = selectedIds.value.indexOf(itemId)
-    if (index !== -1) {
-        selectedIds.value.splice(index, 1)
-    }
+    selectedIds.value.delete(itemId)
     coruptedImages.value = coruptedImages.value.filter((id) => id !== itemId)
     updateSelection()
 }
@@ -647,16 +666,13 @@ const handleCheckedUpdateMain = async (key: string, action: string) => {
     if (index === -1) return
     if (action === 'check') {
         clustersAll.value[index].items.forEach((id) => {
-            if (!selectedIds.value.includes(id)) {
-                selectedIds.value.push(id)
+            if (!selectedIds.value.has(id)) {
+                selectedIds.value.add(id)
             }
         })
     } else {
         clustersAll.value[index].items.forEach((id) => {
-            const index = selectedIds.value.indexOf(id)
-            if (index !== -1) {
-                selectedIds.value.splice(index, 1)
-            }
+            selectedIds.value.delete(id)
         })
     }
     await nextTick()
@@ -664,11 +680,10 @@ const handleCheckedUpdateMain = async (key: string, action: string) => {
 }
 
 const handleCheckedUpdate = async (itemId: string) => {
-    const index = selectedIds.value.indexOf(itemId)
-    if (index === -1) {
-        selectedIds.value.push(itemId)
+    if (selectedIds.value.has(itemId)) {
+        selectedIds.value.delete(itemId)
     } else {
-        selectedIds.value.splice(index, 1)
+        selectedIds.value.add(itemId)
     }
     await nextTick()
     updateSelection()
@@ -677,7 +692,7 @@ const handleCheckedUpdate = async (itemId: string) => {
 const updateSelection = () => {
     window.dl.sendEvent({
         name: 'dl:items:update:selection',
-        payload: selectedIds.value
+        payload: Array.from(selectedIds.value)
     })
 }
 
@@ -695,13 +710,18 @@ const getImages = debounce(async () => {
             cluster.main_item = addItems([cluster.main_item])[0]
         }
         clustersAll.value = clusters
-        selectedIds.value = [...clustersAll.value[0].items]
+        selectedIds.value.clear()
+        if (clustersAll.value.length > 0) {
+            clustersAll.value[0].items.forEach((id) => {
+                selectedIds.value.add(id)
+            })
+        }
         await nextTick()
         loadLeftAndRightThumbs()
     } else {
         coruptPage.value = 1
         await fetchCoruptedImages()
-        selectedIds.value = []
+        selectedIds.value.clear()
     }
     updateSelection()
     loading.value = false
@@ -727,7 +747,8 @@ const fetchCoruptedImages = async () => {
 async function reset() {
     coruptPage.value = 1
     clustersAll.value = []
-    selectedIds.value = []
+    selectedIds.value.clear()
+    similarityPage.value = 1
 
     const feature_sets = await fetch(`/api/available_feature_sets?datasetId=${props.datasetId}`)
     const response = await feature_sets.json()
@@ -793,7 +814,8 @@ const sendToastMassage = (message_text: string, type_text: string) => {
 const clear_all = () => {
     rightSideThumbs.value = []
     leftSideThumbs.value = []
-    selectedIds.value = []
+    selectedIds.value.clear()
+    similarityPage.value = 1
     updateSelection()
 }
 
@@ -928,7 +950,7 @@ const toggleSortDirection = () => {
     justify-content: flex-start;
     padding-left: 30px;
     padding-top: 12px;
-    height: calc(100vh - 80px - 20px); /* 20px for thumbs slider */
+    height: calc(100vh - 80px - 35px); /* 35px for thumbs slider */
 }
 
 .right-pannel .thumb-size {
@@ -1007,5 +1029,12 @@ const toggleSortDirection = () => {
 .checkbox-all {
     padding-right: 15px;
     padding-left: 5px;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
 }
 </style>

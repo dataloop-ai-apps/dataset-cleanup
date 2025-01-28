@@ -142,13 +142,9 @@ async def get_items(
             for i, (dist, idx) in enumerate(
                 zip(exporter.distance[featureSetName], exporter.indices[featureSetName])
             ):
-                # Since distances are sorted, we can stop checking once we exceed eps_value
-                neighbors = []
-                for j, d in zip(idx, dist):
-                    if abs(d) > eps_value:
-                        break
-                    neighbors.append(j)
-                cluster_dict[i].extend(neighbors)
+                cluster_dict[i] = idx[
+                    : np.searchsorted(dist, eps_value, side='right')
+                ].tolist()
 
             # Sort clusters by size
             sorted_clusters = sorted(
@@ -161,7 +157,7 @@ async def get_items(
             # Prepare the output data structure
             output_clusters = []
             cluster_id = 0
-            limit = 5000
+            page_limit = 1000
             for _, members in sorted_clusters:
                 # Remove used members
                 unique_members = [m for m in members if m not in used_items]
@@ -181,11 +177,15 @@ async def get_items(
                     # Mark members as used
                     used_items.update(unique_members)
                     cluster_id += 1
-                    if len(used_items) > limit:
-                        break
 
             # Sorting clusters by the number of items (descending order)
             output_clusters.sort(key=lambda x: len(x['items']), reverse=True)
+
+            total_items_processed = 0
+            for cluster in output_clusters:
+                cluster_size = len(cluster['items'])  # Include the main item
+                cluster['page'] = total_items_processed // page_limit + 1
+                total_items_processed += cluster_size
 
             # first cluster have is_choosed = True
             if len(output_clusters) > 0:
