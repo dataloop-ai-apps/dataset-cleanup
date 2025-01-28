@@ -10,7 +10,8 @@ import pytz
 import tempfile
 from dtlpy_exporter import ExportBase, ExportStatus
 from sklearn.preprocessing import normalize
-from faiss import IndexHNSWFlat,METRIC_ABS_INNER_PRODUCT
+from faiss import IndexHNSWFlat, METRIC_ABS_INNER_PRODUCT
+
 logger = logging.getLogger('[EXPORTER]')
 logging.basicConfig(level='INFO')
 
@@ -126,16 +127,16 @@ class Exporter(ExportBase):
                             }
                         )
                     self.progress = round(round((i + 1) / total_files * 40, 0) + 50)
-            
+
             for key, value in feature_sets_export.items():
 
                 values = np.array([item['value'] for item in feature_sets_export[key]])
                 normalized_data = normalize(values, norm='l2')
-                large_k = min(len(normalized_data), 100)
+                large_k = min(len(normalized_data), 150)
                 dimension = normalized_data.shape[1]
-                hnsw_index = IndexHNSWFlat(dimension, 32)  # 32 = connectivity parameter
+                hnsw_index = IndexHNSWFlat(dimension, 32)
                 hnsw_index.metric_type = METRIC_ABS_INNER_PRODUCT
-                hnsw_index.hnsw.efSearch = 50  # Controls the search accuracy/speed tradeoff
+                hnsw_index.hnsw.efSearch = 50
                 hnsw_index.add(normalized_data)
                 distances, indices = hnsw_index.search(normalized_data, k=large_k)
                 self.distance[key] = distances
