@@ -16,13 +16,19 @@ The Data Cleanup App offers three main functionalities to help you clean and org
 -   **Find Duplicates**: Easily identify and manage duplicate images within your dataset.
 -   **Dataset Actions**: Perform various dataset actions on the clustered or duplicate images, such as deletion or categorization.
 
-### 2. Darkness/Brightness Detection
+### 2. Anomaly Detection
+
+-   **Identify Unique Images**: Detect images that are significantly different from others in the dataset.
+-   **Find Outliers**: Discover images that don't fit the general patterns in your dataset.
+-   **Dataset Actions**: Review and manage anomalous images to ensure dataset consistency.
+
+### 3. Darkness/Brightness Detection
 
 -   **Identify Bright Images**: Detect and list images with high brightness levels.
 -   **Identify Dark Images**: Detect and list images with low brightness levels.
 -   **Dataset Actions**: Take necessary actions on bright or dark images to improve dataset quality.
 
-### 3. Blurriness/Sharpness Detection
+### 4. Blurriness/Sharpness Detection
 
 -   **Identify Blurred Images**: Detect images that are out of focus or blurred.
 -   **Identify Sharp Images**: Detect images that are clear and well-focused.
