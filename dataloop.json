@@ -33,6 +33,7 @@
         ],
         "toolbars": [
             {
+                "name": "cleanup",
                 "displayName": "Cleanup",
                 "icon": "",
                 "invoke": {
