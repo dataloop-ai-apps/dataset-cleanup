@@ -19,7 +19,6 @@ from modules.exporter import Exporter
 logger = logging.getLogger('[CLEANUP]')
 logging.basicConfig(level='INFO')
 
-
 class Runner(dl.BaseServiceRunner):
     """
     Runner class that extends the BaseServiceRunner.
@@ -162,9 +161,13 @@ async def get_items(
                 # Remove used members
                 unique_members = [m for m in members if m not in used_items]
                 if len(unique_members) >= clusterSize:
-                    # Create a new cluster
-                    main_item = item_ids[unique_members[0]]
-                    rest_items = [item_ids[m] for m in unique_members[1:]]
+                    
+                    # Try to find the first annotated item, otherwise take the first one
+                    main_item_idx = next((m for m in unique_members if item_ids[m]['annotated']), unique_members[0])
+                    unique_members.remove(main_item_idx)
+
+                    main_item = item_ids[main_item_idx]
+                    rest_items = [item_ids[m] for m in unique_members]
 
                     cluster_info = {
                         'key': f"Cluster {cluster_id}",
@@ -175,7 +178,7 @@ async def get_items(
                     output_clusters.append(cluster_info)
 
                     # Mark members as used
-                    used_items.update(unique_members)
+                    used_items.update(unique_members + [main_item_idx])
                     cluster_id += 1
 
             # Sorting clusters by the number of items (descending order)
