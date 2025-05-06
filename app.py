@@ -18,7 +18,8 @@ from modules.exporter import Exporter
 
 logger = logging.getLogger('[CLEANUP]')
 logging.basicConfig(level='INFO')
-
+dl.setenv('rc')
+dl.login_token('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik5qZERNMFV3TVRJMlJUVTVPVGcwTVRnd01ESTVRelpHTUVJek0wSkdORVl6TXpJek1qYzVRUSJ9.eyJodHRwczovL2RhdGFsb29wLmFpL2F1dGhvcml6YXRpb24iOnsiY29ubmVjdGlvbklkZW50aXRpZXMiOlsiZ29vZ2xlLW9hdXRoMiJdLCJncm91cHMiOlsiYWRtaW5zIiwicGlwZXIiXSwicm9sZXMiOlsiYWRtaW4iXSwidXNlcl90eXBlIjoiaHVtYW4ifSwiZ2l2ZW5fbmFtZSI6Ikx1ZG92aXQiLCJmYW1pbHlfbmFtZSI6IkhvcnZhdGgiLCJuaWNrbmFtZSI6Imx1ZG8uaCIsIm5hbWUiOiJMdWRvdml0IEhvcnZhdGgiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSUktcXZqN3NtaUhpOWRTbWI2N0kyWFNuMmJCUFJlSFFjOFduRURVWW1reDFwTEdHVT1zOTYtYyIsInVwZGF0ZWRfYXQiOiIyMDI1LTA0LTI4VDA3OjA2OjQwLjYxMVoiLCJlbWFpbCI6Imx1ZG8uaEBkYXRhbG9vcC5haSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczovL2RhdGFsb29wLWRldmVsb3BtZW50LmF1dGgwLmNvbS8iLCJhdWQiOiJJNEFycjlpeHM1UlQ0cUlqT0d0SVozME1WWHpFTTR3OCIsInN1YiI6Imdvb2dsZS1vYXV0aDJ8MTEwOTI5NzYwODgwMjc2ODIyNTUzIiwiaWF0IjoxNzQ2NTE4NzA5LCJleHAiOjE3NDY2MDUxMDksInNpZCI6IktMajVra091MS16RE0ySzR3Z2p1c0xGX1d5T09MUGQ0In0.J9FZtZwpo0nYSjn43PxOnW-gQ9X7C1RNNktslrsroLAgSAB3G8ZlO7oeuEVBMjyzgdF_Gvzev8oWD5y5kgPshOFmNhr5v9ufAwWDCvojzom9CUo6zP6x9O-EbYDxynHqbcWx2oEOO95y9lT0uJWnbEhOc76-z9kIH29ErCUNt7_BK2mWCtmYy4fzTMszoHv5u5q4ddIBvnZm6uEQWK99ErKvGmOxqMDkmXuBcpoVPKoSDwIRSnlD5TLDMfth50TB8VfY1OiSx0552pQcDE20EYdTnHNH9fkUOmJQO1UcNb65rRgMiL9bYuwa1OZoPRK8iXBHQoaD3OK_rmCFKezGqw')
 
 class Runner(dl.BaseServiceRunner):
     """
@@ -162,11 +163,14 @@ async def get_items(
                 # Remove used members
                 unique_members = [m for m in members if m not in used_items]
                 if len(unique_members) >= clusterSize:
-                    # Create a new cluster
-                    main_item = item_ids[unique_members[0]]
-                    rest_items = [item_ids[m] for m in unique_members[1:]]
+                    
+                    # Try to find the first annotated item, otherwise take the first one
+                    main_item_idx = next((m for m in unique_members if item_ids[m]['annotated']), unique_members[0])
+                    unique_members.remove(main_item_idx)
 
-                    #TODO:main item  preferably annotated
+                    main_item = item_ids[main_item_idx]
+                    rest_items = [item_ids[m] for m in unique_members]
+
                     cluster_info = {
                         'key': f"Cluster {cluster_id}",
                         'main_item': main_item,
@@ -176,7 +180,7 @@ async def get_items(
                     output_clusters.append(cluster_info)
 
                     # Mark members as used
-                    used_items.update(unique_members)
+                    used_items.update(unique_members + [main_item_idx])
                     cluster_id += 1
 
             # Sorting clusters by the number of items (descending order)
