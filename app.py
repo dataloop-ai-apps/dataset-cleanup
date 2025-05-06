@@ -166,6 +166,7 @@ async def get_items(
                     main_item = item_ids[unique_members[0]]
                     rest_items = [item_ids[m] for m in unique_members[1:]]
 
+                    #TODO:main item  preferably annotated
                     cluster_info = {
                         'key': f"Cluster {cluster_id}",
                         'main_item': main_item,
