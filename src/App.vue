@@ -42,7 +42,10 @@ function triggerCleaningMethod(data: any) {
 }
 
 const formattedLastUpdated = computed(() => {
-    const date = new Date(lastUpdated.value * 1000) // Convert to milliseconds
+    const timestamp = Number(lastUpdated.value)
+    if (!timestamp || isNaN(timestamp) || timestamp <= 0) return ''
+
+    const date = new Date(timestamp * 1000) // Convert to milliseconds
     return new Intl.DateTimeFormat('default', {
         year: 'numeric',
         month: '2-digit',
