@@ -17,7 +17,7 @@
         "@dataloop-ai/components": "^0.20.11",
         "@dataloop-ai/jssdk": "^0.0.101",
         "gridstack": "^10.1.2",
-        "vue": "^3.4.21",
+        "vue": "^3.5.14",
         "vue-demi": "^0.13.11"
     },
     "devDependencies": {
