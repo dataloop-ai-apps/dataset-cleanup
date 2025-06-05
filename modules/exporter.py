@@ -43,9 +43,9 @@ class Exporter(ExportBase):
         Filters items in the dataset based on quality scores and returns the count or item details.
     """
 
-    def __init__(self, dataset_id):
-        super().__init__(dataset_id)
-        if not hasattr(self, 'feature_sets_export'):
+    def __init__(self, dataset_id, save_dir = './'):
+        super().__init__(dataset_id, save_dir)
+        if not hasattr(self, 'feature_sets_with_len'):
             self.execution_running = {
                 'clip': {
                     "status": 'ready',
@@ -62,9 +62,8 @@ class Exporter(ExportBase):
             }
             # status
 
-            self.feature_sets_export = {}
-            self.distance = {}
-            self.indices = {}
+            self.feature_sets_with_len = {}
+            self.feature_sets_mapping = {}
 
     def process_data(self, **kwargs):
         """
@@ -87,51 +86,43 @@ class Exporter(ExportBase):
             progress (int): An integer representing the progress of the data processing.
             status (str): A string representing the status of the data processing.
         """
+        writers = {}
         try:
             feature_sets = {
                 fs.id: fs.name for fs in self.dataset.project.feature_sets.list().all()
             }
 
-            feature_sets_export = {}
+            self.feature_sets_mapping = {
+                value: key for key, value in feature_sets.items()
+            }
 
-            total_files = len(self.download_data)
-            for i, data in enumerate(self.download_data):
-                name = data.get('name', '')
-                thumbnail = data.get('thumbnail', '')
-                annotated = data.get('annotated', False)
-                for feature_vec in data.get('itemVectors', []):
-                    fs_id = feature_vec.get('featureSetId')
-                    value = feature_vec.get('value')
+            for key in self.feature_set_ids:
+                writers[key] = open(f"{self._save_dir}/data_{key}.jsonl", "w")
+
+            with open(self._data_dir, 'r') as in_file:
+                for i, line in enumerate(in_file):
+                    data = json.loads(line)
+                    name = data.get('name', '')
+                    thumbnail = data.get('thumbnail', '')
+                    annotated = data.get('annotated', False)
                     item_id = data.get('id')
 
-                    key = feature_sets.get(fs_id, fs_id)
+                    for fs_id in data.get("feature_set_ids",[]):
+                        writers[fs_id].write(json.dumps({
+                            "itemId": item_id,
+                            "name": name,
+                            "thumbnail": thumbnail,
+                            "annotated": annotated,
+                        }) + "\n")
 
-                    if key not in feature_sets_export:
-                        feature_sets_export[key] = [
-                            {
-                                'itemId': item_id,
-                                'value': value,
-                                'name': name,
-                                'thumbnail': thumbnail,
-                                'annotated': annotated,
-                            }
-                        ]
-                    else:
-                        feature_sets_export[key].append(
-                            {
-                                'itemId': item_id,
-                                'value': value,
-                                'name': name,
-                                'thumbnail': thumbnail,
-                                'annotated': annotated,
-                            }
-                        )
-                    self.progress = round(round((i + 1) / total_files * 40, 0) + 50)
+                    self.progress = round(round((i + 1) / self.len_items * 30, 0) + 50)
 
-            for key, value in feature_sets_export.items():
+            for key in self.feature_set_ids:
 
-                values = np.array([item['value'] for item in feature_sets_export[key]])
-                normalized_data = normalize(values, norm='l2')
+                vectors  = np.load(f"{self._vectors_dir}/{key}.npy")
+                name = feature_sets.get(key)
+                self.feature_sets_with_len[name] = len(vectors)
+                normalized_data = normalize(vectors, norm='l2')
                 large_k = min(len(normalized_data), 150)
                 dimension = normalized_data.shape[1]
                 hnsw_index = IndexHNSWFlat(dimension, 32)
@@ -139,35 +130,24 @@ class Exporter(ExportBase):
                 hnsw_index.hnsw.efSearch = 50
                 hnsw_index.add(normalized_data)
                 distances, indices = hnsw_index.search(normalized_data, k=large_k)
-                self.distance[key] = distances
-                self.indices[key] = indices
+                distances = np.save(f"{self._vectors_dir}/{key}_distances.npy", distances)
+                indices = np.save(f"{self._vectors_dir}/{key}_indices.npy", indices)
+                
+                self.progress = round(round((i + 1) / self.len_items * 10, 0) + 80)
+
+    
 
             self.progress = 95
 
-            self.feature_sets_export = feature_sets_export
 
         except Exception as e:
             logger.error("Error while loading feature sets: %s", e)
             self.status = ExportStatus.ERROR
             raise
+        finally:
+            for key in writers:
+                writers[key].close()
 
-    def get_feature_sets_names(self):
-        """
-        Retrieves the names and sizes of feature sets.
-
-        This method iterates over the `feature_sets_export` dictionary,
-        counts the number of features in each set, and returns a new
-        dictionary with the feature set names as keys and their respective
-        sizes as values.
-
-        Returns:
-            dict: A dictionary where the keys are feature set names (str)
-                  and the values are the number of features in each set (int).
-        """
-        feature_dict = {}
-        for key, value in self.feature_sets_export.items():
-            feature_dict[key] = len(value)
-        return feature_dict
 
     def install_start_exec(self, dpk_name, service_name, funtion_name, exec_type):
         """

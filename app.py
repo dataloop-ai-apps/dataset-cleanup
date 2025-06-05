@@ -119,18 +119,16 @@ async def get_items(
             - 'Darkness/Brightness': Retrieves items based on the darkness/brightness quality score.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId)
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     if type == 'Similarity' or type == 'Anomalies':
-        feature_vectors = exporter.feature_sets_export[featureSetName]
-        item_ids = [
-            {
-                'itemId': item['itemId'],
-                'thumbnail': item['thumbnail'],
-                'name': item['name'],
-                'annotated': item['annotated'],
-            }
-            for item in feature_vectors
-        ]
+        feature_set_id = exporter.feature_sets_mapping.get(featureSetName)
+        distances = np.load(f"{exporter._vectors_dir}/{feature_set_id}_distances.npy")
+        indices = np.load(f"{exporter._vectors_dir}/{feature_set_id}_indices.npy")
+        items = []
+        with open(f"{exporter._save_dir}/data_{feature_set_id}.jsonl", 'r') as in_file:
+            for line in in_file:
+                items.append(json.loads(line))
+
         eps_value = similarity
 
         if type == 'Similarity':
@@ -139,7 +137,7 @@ async def get_items(
 
             # Determine clusters based on eps_value
             for i, (dist, idx) in enumerate(
-                zip(exporter.distance[featureSetName], exporter.indices[featureSetName])
+                zip(distances, indices)
             ):
                 cluster_dict[i] = idx[
                     : np.searchsorted(dist, eps_value, side='right')
@@ -163,11 +161,11 @@ async def get_items(
                 if len(unique_members) >= clusterSize:
                     
                     # Try to find the first annotated item, otherwise take the first one
-                    main_item_idx = next((m for m in unique_members if item_ids[m]['annotated']), unique_members[0])
+                    main_item_idx = next((m for m in unique_members if items[m]['annotated']), unique_members[0])
                     unique_members.remove(main_item_idx)
 
-                    main_item = item_ids[main_item_idx]
-                    rest_items = [item_ids[m] for m in unique_members]
+                    main_item = items[main_item_idx]
+                    rest_items = [items[m] for m in unique_members]
 
                     cluster_info = {
                         'key': f"Cluster {cluster_id}",
@@ -208,8 +206,8 @@ async def get_items(
 
         else:
             ids = [
-                item_ids[i]
-                for i, dist in enumerate(exporter.distance[featureSetName])
+                items[i]
+                for i, dist in enumerate(distances)
                 if dist[1] > eps_value  # Adjust for cosine similarity
             ]
 
@@ -242,7 +240,7 @@ async def export_status(datasetId: str):
         HTMLResponse: An HTML response containing the export status in JSON format with a status code of 200.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId)
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     status = {
         'progress': int(exporter.progress),
         'exportDate': exporter.last_update,
@@ -265,7 +263,8 @@ async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTas
     Returns:
         HTMLResponse: A response indicating that the export process has started.
     """
-    exporter: Exporter = Exporter(dataset_id=datasetId)
+
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     exporter.progress = 0
     background_tasks.add_task(exporter.check_and_run, use_cache=cache)
     return HTMLResponse(json.dumps({'status': 'started'}), status_code=200)
@@ -282,9 +281,10 @@ async def available_feature_sets(datasetId: str):
     Returns:
         HTMLResponse: An HTML response containing a JSON-encoded list of feature set names and a status code of 200.
     """
-    exporter: Exporter = Exporter(dataset_id=datasetId)
-    feature_sets = exporter.get_feature_sets_names()
-    return HTMLResponse(json.dumps(feature_sets), status_code=200)
+
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+    print(exporter.feature_sets_with_len)
+    return HTMLResponse(json.dumps(exporter.feature_sets_with_len), status_code=200)
 
 
 @router.get("/start_execution")
@@ -298,7 +298,7 @@ async def start_execution(datasetId: str, exec_type: str):
         HTMLResponse: A response object containing the status of the execution process in JSON format.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId)
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     exporter.start_execution(exec_type)
     status = {
         'progress': exporter.execution_running.get(exec_type)['progress'],
@@ -320,7 +320,7 @@ async def get_execution_status(datasetId: str, exec_type: str):
     Returns:
         HTMLResponse: A response object containing the execution status in JSON format with a status code of 200.
     """
-    exporter: Exporter = Exporter(dataset_id=datasetId)
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     status = {
         'progress': exporter.execution_running.get(exec_type)['progress'],
         'status': exporter.execution_running.get(exec_type)['status'],
@@ -340,7 +340,7 @@ async def get_quality_score_exist(datasetId: str):
     Returns:
         HTMLResponse: A response object containing the quality score in JSON format and a status code of 200.
     """
-    exporter: Exporter = Exporter(dataset_id=datasetId)
+    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     items_count = exporter.quality_score('Darkness/Brightness', 0, 1)
     status = items_count
     return HTMLResponse(json.dumps(status), status_code=200)
