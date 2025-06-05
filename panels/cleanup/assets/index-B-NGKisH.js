@@ -157084,7 +157084,10 @@ https://github.com/highlightjs/highlight.js/issues/2277`
             l = iy,
             c = Ro,
             u = () => {
-                const f = e.ON_PREM
+                let f
+                try {
+                    f = e.ON_PREM
+                } catch {}
                 return f === void 0 || f === 'true'
             }
         t.isOnPrem = u
@@ -160997,7 +161000,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`
                         ;(te = !0),
                             Q.scrollIntoView({
                                 behavior: 'smooth',
-                                block: 'start',
+                                block: 'nearest',
                                 inline: 'nearest'
                             }),
                             setTimeout(function () {
@@ -161902,7 +161905,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`
                         : yt('', !0)
             }
         }),
-        W2e = un(q2e, [['__scopeId', 'data-v-626c587d']]),
+        W2e = un(q2e, [['__scopeId', 'data-v-fa726c00']]),
         K2e = { key: 0, class: 'loading-spinner' },
         Q2e = { key: 1 },
         X2e = Ht({
