@@ -520,7 +520,7 @@ const scrollIntoView = function (element: Element) {
     scrollingIntoView = true
     element.scrollIntoView({
         behavior: 'smooth',
-        block: 'start',
+        block: 'nearest',
         inline: 'nearest'
     })
     setTimeout(function () {
