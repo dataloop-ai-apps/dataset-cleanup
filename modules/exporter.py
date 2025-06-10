@@ -87,6 +87,9 @@ class Exporter(ExportBase):
             status (str): A string representing the status of the data processing.
         """
         writers = {}
+        self.feature_sets_with_len = {}
+        self.feature_sets_mapping = {}
+
         try:
             feature_sets = {
                 fs.id: fs.name for fs in self.dataset.project.feature_sets.list().all()
@@ -117,7 +120,7 @@ class Exporter(ExportBase):
 
                     self.progress = round(round((i + 1) / self.len_items * 30, 0) + 50)
 
-            for key in self.feature_set_ids:
+            for idx, key in enumerate(self.feature_set_ids):
 
                 vectors  = np.load(f"{self._vectors_dir}/{key}.npy")
                 name = feature_sets.get(key)
@@ -133,9 +136,9 @@ class Exporter(ExportBase):
                 distances = np.save(f"{self._vectors_dir}/{key}_distances.npy", distances)
                 indices = np.save(f"{self._vectors_dir}/{key}_indices.npy", indices)
                 
-                self.progress = round(round((i + 1) / self.len_items * 10, 0) + 80)
+                self.progress = round(round((idx + 1) / len(self.feature_set_ids) * 10, 0) + 80)
 
-    
+
 
             self.progress = 95
 
