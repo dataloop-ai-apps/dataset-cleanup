@@ -158,7 +158,8 @@ const pollStatus = async (interval = 1000, maxAttempts = 3600) => {
             buildReady.value = true
             operationRunning.value = false
             if (cleaningItemRef.value) {
-                cleaningItemRef.value.reset()
+                await cleaningItemRef.value.reset()
+                await cleaningItemRef.value.getFeatureSets()
             }
             return true
         }
@@ -183,7 +184,7 @@ const handleReload = async () => {
 
     progressValue.value = 0
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    fetch(`/api/export/run?datasetId=${datasetId.value}&&cache=no`)
+    await fetch(`/api/export/run?datasetId=${datasetId.value}&&cache=no`)
     await pollStatus()
 }
 </script>

@@ -335,6 +335,7 @@ const clusterSizes = ref([2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 10
 
 const loading = ref(false)
 const mounted = ref(false)
+const featureSetCalled = ref(false)
 const qualityCount = ref(0)
 type Cluster = {
     key: string
@@ -352,7 +353,12 @@ type Props = {
 }
 
 const showMainContent = computed(() => {
-    return props.lastUpdated !== 'Never' && props.lastUpdated !== 'Error' && props.progress === 1
+    return (
+        props.lastUpdated !== 'Never' &&
+        props.lastUpdated !== 'Error' &&
+        props.progress === 1 &&
+        featureSetCalled.value
+    )
 })
 
 const coruptedImagesLength = computed(() => {
@@ -361,7 +367,8 @@ const coruptedImagesLength = computed(() => {
 
 defineExpose({
     deletedItemsRemove,
-    reset
+    reset,
+    getFeatureSets
 })
 
 const noEmptyClusters = computed(() => {
@@ -382,6 +389,10 @@ const triggerRefresh = () => {
 }
 
 const triggerReload = () => {
+    featureSetCalled.value = false
+    featureSetDict.value = {}
+    options.value = []
+    selected.value = ''
     emit('trigger-reload')
 }
 
@@ -749,17 +760,20 @@ async function reset() {
     clustersAll.value = []
     selectedIds.value.clear()
     similarityPage.value = 1
+    await checkMetadata()
+}
 
+async function getFeatureSets() {
     const feature_sets = await fetch(`/api/available_feature_sets?datasetId=${props.datasetId}`)
     const response = await feature_sets.json()
     featureSetDict.value = response
     options.value = Object.keys(response)
-    await checkMetadata()
     selected.value = options.value[0]
-
+    featureSetCalled.value = true
     if (options.value.length > 0) {
         await getImages()
     }
+    FeatureSetToast()
 }
 
 onBeforeMount(async () => {
@@ -790,6 +804,9 @@ onBeforeMount(async () => {
     }
 
     datasetItemsCount.value = await window.dl.items.countByQuery(query_item)
+})
+
+const FeatureSetToast = () => {
     if (
         datasetItemsCount.value != featureSetDict.value[selected.value] &&
         options.value.length > 0
@@ -799,7 +816,7 @@ onBeforeMount(async () => {
             'warning'
         )
     }
-})
+}
 
 const sendToastMassage = (message_text: string, type_text: string) => {
     window.dl.sendEvent({
@@ -816,18 +833,14 @@ const clear_all = () => {
     leftSideThumbs.value = []
     selectedIds.value.clear()
     similarityPage.value = 1
+
     updateSelection()
 }
 
 const SelectedChange = () => {
     clear_all()
     clustersAll.value = []
-    if (datasetItemsCount.value != featureSetDict.value[selected.value]) {
-        sendToastMassage(
-            'For selected feature set, number of items in dataset is not equal to number of items in feature set. Please rerun the feature vector extraction',
-            'warning'
-        )
-    }
+    FeatureSetToast()
 }
 
 const sortDirection = ref<boolean>(false)
