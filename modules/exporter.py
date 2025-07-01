@@ -89,6 +89,7 @@ class Exporter(ExportBase):
         writers = {}
         self.feature_sets_with_len = {}
         self.feature_sets_mapping = {}
+        self.message = "Processing exported data."
 
         try:
             feature_sets = {
@@ -119,7 +120,7 @@ class Exporter(ExportBase):
                         }) + "\n")
 
                     self.progress = round(round((i + 1) / self.len_items * 30, 0) + 50)
-
+            self.message = "Normalizing vectors and creating indexes."
             for idx, key in enumerate(self.feature_set_ids):
 
                 vectors  = np.load(f"{self._vectors_dir}/{key}.npy")
@@ -145,6 +146,7 @@ class Exporter(ExportBase):
 
         except Exception as e:
             logger.error("Error while loading feature sets: %s", e)
+            self.message = "Error while processing exported data."
             self.status = ExportStatus.ERROR
             raise
         finally:

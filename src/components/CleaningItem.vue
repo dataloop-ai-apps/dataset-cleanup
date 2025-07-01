@@ -71,6 +71,9 @@
         <div v-if="loading" class="loading">
             <DlSpinner text="Loading, please wait..." size="60px" />
         </div>
+        <div v-if="!showMainContent">
+            <EmptyState :text2="message" />
+        </div>
 
         <div
             v-if="
@@ -198,6 +201,7 @@
                 <EmptyState
                     :dataset-id="props.datasetId"
                     exec-type="clip"
+                    icon="icon-dl-project-filled"
                     text1="No Embeddings In Dataset"
                     text2="Install one or more models to create a feature-set and populate with embeddings data."
                     text3="The models need to have a trigger on every item-created event to allow full coverage."
@@ -285,6 +289,7 @@
                             selectedType == 'Blurriness/Sharpness'
                     "
                     :dataset-id="props.datasetId"
+                    icon="icon-dl-project-filled"
                     exec-type="quality-score-generator"
                     text1="No Quality Score In Dataset"
                     text2="Install app to add a quality score into metadata."
@@ -350,6 +355,7 @@ type Props = {
     datasetId: string
     lastUpdated: string
     progress: number
+    message: string
 }
 
 const showMainContent = computed(() => {

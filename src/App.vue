@@ -10,6 +10,7 @@
                 :dataset-id="datasetId"
                 :last-updated="formattedLastUpdated"
                 :progress="progressValue"
+                :message="message"
                 @trigger-refresh="handleEmptystateTrigger"
                 @trigger-reload="handleReload"
             />
@@ -27,9 +28,10 @@ const contentIframe = ref<HTMLIFrameElement | null>(null)
 const isReady = ref<boolean>(false)
 const buildReady = ref<boolean>(false)
 const currentTheme = ref<ThemeType>(ThemeType.LIGHT)
-const lastUpdated = ref<number>(0)
+const lastUpdated = ref<number | string>(0)
 const operationRunning = ref<boolean>(true)
 const progressValue = ref<number>(0)
+const message = ref<string>('')
 const datasetId = ref<string>(null)
 const projectId = ref<string>(null)
 const frameLoadFailed = ref<boolean>(false)
@@ -74,6 +76,7 @@ const updateStatus = async () => {
     }
     lastUpdated.value = data.exportDate
     progressValue.value = data.progress / 100
+    message.value = data.message
 
     const completed = data.progress === 100
     if (data.status == 'error') {
