@@ -245,6 +245,7 @@ async def export_status(datasetId: str):
         'progress': int(exporter.progress),
         'exportDate': exporter.last_update,
         'status': exporter.status.value,
+        'message': exporter.message,
     }
     logger.info("Returning status: %s", status)
     return HTMLResponse(json.dumps(status, indent=2), status_code=200)
@@ -266,6 +267,7 @@ async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTas
 
     exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
     exporter.progress = 0
+    exporter.message = ""
     background_tasks.add_task(exporter.check_and_run, use_cache=cache)
     return HTMLResponse(json.dumps({'status': 'started'}), status_code=200)
 

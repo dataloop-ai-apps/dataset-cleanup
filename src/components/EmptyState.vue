@@ -68,7 +68,7 @@ const latestStatus = ref<string>('created')
 const progress = ref<number>(0)
 
 const props = withDefaults(defineProps<Props>(), {
-    icon: 'icon-dl-project-filled',
+    icon: '',
     execType: '',
     datasetId: '',
     text3: '',
