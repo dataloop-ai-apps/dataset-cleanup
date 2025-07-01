@@ -1,7 +1,7 @@
 {
     "name": "dataset-cleanup",
     "private": true,
-    "version": "0.0.39",
+    "version": "0.0.40",
     "scripts": {
         "dev": "vite",
         "build": "vue-tsc --noEmit --skipLibCheck && vite build",
