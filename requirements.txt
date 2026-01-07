@@ -4,3 +4,4 @@ dtlpy == 1.111.11
 scikit-learn
 https://storage.googleapis.com/dtlpy/single-export-be/dtlpy_exporter-0.1.8-py3-none-any.whl
 faiss-cpu
+aiohttp>=3.13.3 # not directly required, pinned by Snyk to avoid a vulnerability
