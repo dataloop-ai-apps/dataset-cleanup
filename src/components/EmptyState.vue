@@ -1,11 +1,11 @@
 <template>
     <div>
         <div v-if="!showProgress" class="base-container">
-            <DlIcon :icon="icon" size="50px" color="dl-color-darker" />
-            <DlTypography class="f20" color="dl-color-darker">{{ props.text1 }}</DlTypography>
+            <DlIcon :icon="icon" size="50px" color="dell-gray-900" />
+            <DlTypography class="f20" color="dell-gray-900">{{ props.text1 }}</DlTypography>
 
-            <DlTypography class="f14" color="dl-color-medium">{{ props.text2 }}</DlTypography>
-            <DlTypography v-if="props.text3" class="padb-20 f14" color="dl-color-medium">{{
+            <DlTypography class="f14" color="dell-gray-500">{{ props.text2 }}</DlTypography>
+            <DlTypography v-if="props.text3" class="padb-20 f14" color="dell-gray-500">{{
                 props.text3
             }}</DlTypography>
 
@@ -13,12 +13,8 @@
                 props.text4
             }}</DlButton>
 
-            <DlTypography v-if="props.text5" color="dl-color-medium">{{
-                props.text5
-            }}</DlTypography>
-            <DlTypography v-if="props.text6" color="dl-color-medium">{{
-                props.text6
-            }}</DlTypography>
+            <DlTypography v-if="props.text5" color="dell-gray-500">{{ props.text5 }}</DlTypography>
+            <DlTypography v-if="props.text6" color="dell-gray-500">{{ props.text6 }}</DlTypography>
         </div>
         <div v-if="showProgress" class="base-container-f14">
             <DlProgressBar
@@ -202,7 +198,7 @@ const updateStatus = async () => {
 
 .small-text {
     font-size: 14px;
-    color: var(--dl-color-darker);
+    color: var(--dell-gray-900);
     margin-top: 5px;
 }
 </style>

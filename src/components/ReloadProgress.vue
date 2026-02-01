@@ -10,14 +10,14 @@
     <div v-else style="display: flex; flex-direction: row; gap: 8px; align-items: center">
         <DlIcon
             icon="icon-dl-reload"
-            color="dl-color-secondary"
+            color="dell-blue-500"
             size="16px"
             style="cursor: pointer"
             @click="onReloadClick"
         />
         <div style="display: flex; flex-direction: column">
-            <DlTypography color="dl-color-medium" size="small"> Last updated </DlTypography>
-            <DlTypography color="dl-color-darker">
+            <DlTypography color="dell-gray-500" size="small"> Last updated </DlTypography>
+            <DlTypography color="dell-gray-900">
                 {{ lastUpdated }}
             </DlTypography>
         </div>

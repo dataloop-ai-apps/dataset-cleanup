@@ -22,7 +22,8 @@ export default defineConfig({
             'flat',
             'highlight.js',
             'sortablejs',
-            '@dataloop-ai/jssdk'
+            '@dataloop-ai/jssdk',
+            'tokenizr'
         ],
         exclude: ['node_modules', './node_modules', 'dist', './dist']
     },

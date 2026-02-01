@@ -7,4 +7,5 @@ RUN pip install --user  \
     dtlpy \
     scikit-learn \
     https://storage.googleapis.com/dtlpy/single-export-be/dtlpy_exporter-0.1.6-py3-none-any.whl \
-    faiss-cpu
+    faiss-cpu == 1.9.0
+
