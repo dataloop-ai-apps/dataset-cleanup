@@ -72,7 +72,7 @@
             <DlSpinner text="Loading, please wait..." size="60px" />
         </div>
         <div v-if="!showMainContent">
-            <EmptyState :text2="message" />
+            <EmptyState text1="" :text2="message" />
         </div>
 
         <div
@@ -91,10 +91,10 @@
                     <DlChip
                         class="sorting-chip"
                         clickable
-                        color="dl-color-bg"
+                        color="dell-white"
                         :icon="sortDirection ? 'icon-dl-arrow-up' : 'icon-dl-arrow-down'"
                         max-width="110px"
-                        text-color="dl-color-medium"
+                        text-color="dell-gray-500"
                         @click="toggleSortDirection"
                     >Sort by: similarities</DlChip
                     >
@@ -107,8 +107,8 @@
                         label="Select All"
                     />
                     <DlChip
-                        color="dl-color-bg"
-                        text-color="dl-color-medium"
+                        color="dell-white"
+                        text-color="dell-gray-500"
                         max-width="250px"
                         :label="AllItemsCount + ' item' + (AllItemsCount > 1 ? 's' : '')"
                     />
@@ -234,8 +234,8 @@
                         label="Select All"
                     />
                     <DlChip
-                        color="dl-color-bg"
-                        text-color="dl-color-medium"
+                        color="dell-white"
+                        text-color="dell-gray-500"
                         max-width="250px"
                         :label="
                             AllItemsCountCorupted + ' item' + (AllItemsCountCorupted > 1 ? 's' : '')
@@ -873,7 +873,7 @@ const toggleSortDirection = () => {
     justify-content: space-between;
     align-items: center; /* Vertically centers the items in the container */
     padding-bottom: 10px;
-    border-bottom: 1px solid var(--dl-color-disabled);
+    border-bottom: 1px solid var(--dell-gray-300);
 }
 
 .w-20 {
@@ -955,7 +955,7 @@ const toggleSortDirection = () => {
     height: calc(100vh - 80px);
 }
 .right-pannel {
-    border-left: 1px solid var(--dl-color-disabled);
+    border-left: 1px solid var(--dell-gray-300);
     display: flex;
     flex-direction: column;
     flex-grow: 1;
@@ -978,7 +978,7 @@ const toggleSortDirection = () => {
 }
 
 .pagination :deep(.dl-pagination--container) {
-    border-left: 1px solid var(--dl-color-disabled);
+    border-left: 1px solid var(--dell-gray-300);
     padding-left: 5px;
     padding-right: 10px;
     margin-left: 5px;
@@ -1007,7 +1007,7 @@ const toggleSortDirection = () => {
 }
 /*
 .main-image:hover {
-    background-color: var(--dl-color-fill);
+    background-color: var(--dell-gray-100);
 }
 */
 .main-image :deep(.thumb-im) {
@@ -1032,7 +1032,7 @@ const toggleSortDirection = () => {
     display: flex;
     justify-content: flex-start;
     min-height: 28px;
-    border-bottom: 1px solid var(--dl-color-disabled);
+    border-bottom: 1px solid var(--dell-gray-300);
     align-items: center;
 }
 .select-all .sorting-chip {

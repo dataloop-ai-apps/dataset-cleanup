@@ -140,11 +140,11 @@ defineExpose({
     text-align: center;
 }
 .thumb-im img:hover {
-    border: 2px solid var(--dl-color-secondary);
+    border: 2px solid var(--dell-blue-500);
 }
 
 .thumb-im img {
-    border: 2px solid var(--dl-color-separator);
+    border: 2px solid var(--dell-gray-300);
 }
 
 .thumb-im img:not([src]) {
@@ -159,7 +159,7 @@ defineExpose({
 }
 
 .thumb-im img.checked {
-    border: 2px solid var(--dl-color-secondary);
+    border: 2px solid var(--dell-blue-500);
 }
 
 .image-thumb {
@@ -174,7 +174,7 @@ defineExpose({
     right: 2px;
     bottom: 2px;
     height: 6px;
-    background-color: var(--dl-color-positive);
+    background-color: var(--dell-green-500);
 }
 
 .image-thumb.no-annotation::after {

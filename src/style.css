@@ -16,11 +16,11 @@ body {
   
 }
 .scroll::-webkit-scrollbar-thumb {
-  background-color: var(--dl-color-lighter);
+  background-color: var(--dell-gray-600);
 }
 @supports (-moz-appearance: none) {
   .scroll {
-      scrollbar-color: var(--dl-color-lighter) transparent;
+      scrollbar-color: var(--dell-gray-600) transparent;
   
   }
 }
@@ -28,7 +28,7 @@ body {
   background-color: transparent;
 }
 .reactive-scroll .scroll:hover::-webkit-scrollbar-thumb {
-  background-color: var(--dl-color-lighter);
+  background-color: var(--dell-gray-600);
 }
 .scroll,
 .scroll-x,

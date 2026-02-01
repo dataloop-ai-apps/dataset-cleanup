@@ -221,6 +221,6 @@ const handleReload = async () => {
     flex-direction: row;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid var(--dl-color-disabled);
+    border-bottom: 1px solid var(--dell-gray-300);
 }
 </style>
