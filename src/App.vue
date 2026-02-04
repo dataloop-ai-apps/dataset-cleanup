@@ -104,6 +104,12 @@ const handleInitialFrameLoading = async () => {
             const existingStatus = await updateStatus()
             if (!existingStatus) {
                 await pollStatus()
+            } else {
+                // Status already complete, fetch feature sets directly
+                if (cleaningItemRef.value) {
+                    await cleaningItemRef.value.reset()
+                    await cleaningItemRef.value.getFeatureSets()
+                }
             }
         } else {
             console.error('No dataset found to fetch feature vectors')
