@@ -15,6 +15,7 @@ from faiss import IndexFlatIP, IndexHNSWFlat, METRIC_INNER_PRODUCT
 from sklearn.preprocessing import normalize
 
 from modules.exporter import Exporter
+from dtlpy_exporter import ExportStatus
 
 logger = logging.getLogger('[CLEANUP]')
 logging.basicConfig(level='INFO')
@@ -266,6 +267,16 @@ async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTas
     """
 
     exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+
+    # Quick check: if no feature sets exist, skip export entirely
+    feature_sets_count = exporter.dataset.feature_sets.list().items_count
+    if feature_sets_count == 0:
+        logger.info("No feature sets found for dataset %s, skipping export", datasetId)
+        exporter.progress = 100
+        exporter.status = ExportStatus.SUCCESS
+        exporter.feature_sets_with_len = {}
+        return HTMLResponse(json.dumps({'status': 'no_feature_sets'}), status_code=200)
+
     exporter.progress = 0
     exporter.message = ""
     background_tasks.add_task(exporter.check_and_run, use_cache=cache)

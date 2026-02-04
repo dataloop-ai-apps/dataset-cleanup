@@ -209,7 +209,7 @@
                     text5="This will spin up a high-memory machine to execute CLIP model for extracting embeddings from all items in the dataset."
                     text6="Ensure the high-memory machine is available in your project's catalogue."
                     label-text="Adding Embeddings..."
-                    @trigger-refresh="triggerRefresh"
+                    @trigger-refresh="triggerReload"
                 />
             </div>
         </div>
