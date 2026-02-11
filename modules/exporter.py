@@ -171,7 +171,7 @@ class Exporter(ExportBase):
         filters = dl.Filters(resource='apps')
         filters.add(field='dpkName', values=dpk_name)
         if project.apps.list(filters=filters).items_count == 0:
-            dpk = project.dpks.get(dpk_name=dpk_name)
+            dpk = dl.dpks.get(dpk_name=dpk_name)
             project.apps.install(dpk=dpk)
         service = project.services.get(service_name=service_name)
         execution = project.executions.create(
