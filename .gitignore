@@ -332,3 +332,4 @@ node_modules
 /tmp*
 /dist*
 *.dataloop
+.npm-cache/
