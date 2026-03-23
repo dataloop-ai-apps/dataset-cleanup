@@ -69,7 +69,7 @@
             />
         </div>
         <div v-if="loading" class="loading">
-            <DlSpinner text="Loading, please wait..." size="60px" />
+            <CleanupLoadingAnimation :progress="props.progress" />
         </div>
         <div v-if="!showMainContent">
             <EmptyState text1="" :text2="message" />
@@ -309,7 +309,6 @@
 import { defineProps, onBeforeMount } from 'vue'
 import {
     DlSelect,
-    DlSpinner,
     DlSlider,
     DlButton,
     DlCheckbox,
@@ -318,6 +317,7 @@ import {
     DlChip,
     DlIcon
 } from '@dataloop-ai/components'
+import CleanupLoadingAnimation from './CleanupLoadingAnimation.vue'
 import ItemThumbnailImage from './ItemThumbnailImage.vue'
 import EmptyState from './EmptyState.vue'
 import ReloadProgress from './ReloadProgress.vue'
