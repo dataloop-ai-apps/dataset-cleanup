@@ -68,7 +68,7 @@
                 @reload="triggerReload"
             />
         </div>
-        <div v-if="loading" class="loading">
+        <div v-if="loading || props.progress < 1" class="loading">
             <CleanupLoadingAnimation :progress="props.progress" />
         </div>
         <div v-if="!showMainContent">
