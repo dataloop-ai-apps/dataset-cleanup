@@ -1,24 +1,17 @@
 <template>
     <div ref="containerRef" class="cleanup-loader">
         <div class="loader-container">
-            <svg
-                :viewBox="viewBox"
-                class="loader-svg"
-                xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg :viewBox="viewBox" class="loader-svg" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <clipPath :id="clipPathId">
                         <path d="M -45 -65 L 15 -65 L 45 -35 L 45 65 L -45 65 Z" />
                     </clipPath>
 
                     <g :id="fileIconId">
-                        <path
-                            d="M -45 -65 L 15 -65 L 45 -35 L 45 65 L -45 65 Z"
-                            fill="#ffffff"
-                        />
+                        <path d="M -45 -65 L 15 -65 L 45 -35 L 45 65 L -45 65 Z" fill="#ffffff" />
                         <g class="dots-wrapper">
                             <g :clip-path="`url(#${clipPathId})`">
-                                <g id="layer-1" class="parallax-layer-1">
+                                <g :id="`${fileIconId}-l1`" class="parallax-layer-1">
                                     <circle
                                         v-for="dot in layer1Dots"
                                         :key="`l1-${dot.cx}-${dot.cy}`"
@@ -28,7 +21,7 @@
                                         fill="#e8eaed"
                                     />
                                 </g>
-                                <g id="layer-2" class="parallax-layer-2">
+                                <g :id="`${fileIconId}-l2`" class="parallax-layer-2">
                                     <circle
                                         v-for="dot in layer2Dots"
                                         :key="`l2-${dot.cx}-${dot.cy}`"
@@ -70,7 +63,7 @@
 
 <script setup lang="ts">
 import { DlProgressBar } from '@dataloop-ai/components'
-import { computed, onMounted, onUnmounted, ref } from 'vue-demi'
+import { defineProps, withDefaults, computed, onMounted, onUnmounted, ref } from 'vue-demi'
 
 const props = withDefaults(
     defineProps<{
@@ -260,18 +253,12 @@ onUnmounted(() => {
 }
 
 .parallax-layer-1 {
-    transform: translate(
-        calc(var(--mouseX, 0) * -5px),
-        calc(var(--mouseY, 0) * -5px)
-    );
+    transform: translate(calc(var(--mouseX, 0) * -5px), calc(var(--mouseY, 0) * -5px));
     will-change: transform;
 }
 
 .parallax-layer-2 {
-    transform: translate(
-        calc(var(--mouseX, 0) * -16px),
-        calc(var(--mouseY, 0) * -16px)
-    );
+    transform: translate(calc(var(--mouseX, 0) * -16px), calc(var(--mouseY, 0) * -16px));
     will-change: transform;
 }
 

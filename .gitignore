@@ -333,3 +333,4 @@ node_modules
 /dist*
 *.dataloop
 .npm-cache/
+.plans/
