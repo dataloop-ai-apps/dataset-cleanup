@@ -1,13 +1,8 @@
 <template>
-    <DlProgressBar
-        v-if="progress < 1"
-        label="Progress"
-        width="200px"
-        :show-value="true"
-        :show-percentage="true"
-        :value="progress"
-    />
-    <div v-else style="display: flex; flex-direction: row; gap: 8px; align-items: center">
+    <div
+        v-if="progress >= 1"
+        style="display: flex; flex-direction: row; gap: 8px; align-items: center"
+    >
         <DlIcon
             icon="icon-dl-reload"
             color="dell-blue-500"
@@ -26,13 +21,12 @@
 
 <script lang="ts">
 import { defineComponent, PropType, ref } from 'vue-demi'
-import { DlIcon, DlProgressBar, DlTypography } from '@dataloop-ai/components'
+import { DlIcon, DlTypography } from '@dataloop-ai/components'
 
 export default defineComponent({
     name: 'ReloadProgress',
     components: {
         DlIcon,
-        DlProgressBar,
         DlTypography
     },
     props: {
