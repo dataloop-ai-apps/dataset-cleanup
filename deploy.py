@@ -16,11 +16,6 @@ def clean():
     [i.delete() for i in list(dpk.revisions.all())]
 
 
-def bump(bump_type='patch'):
-    print(f"Bump Time: {time.time()}")
-    subprocess.run(f'bumpversion {bump_type} --allow-dirty', shell=True)
-
-
 def publish_and_install(project, manifest):
     env = dl.environment()
     app_name = manifest['name']
@@ -39,18 +34,14 @@ def publish_and_install(project, manifest):
     except dl.exceptions.NotFound:
         print(f'installing ..')
 
-        app = project.apps.install(dpk=dpk,
-                                   app_name=dpk.display_name,
-                                   scope=dl.AppScope.SYSTEM)
+        app = project.apps.install(dpk=dpk, app_name=dpk.display_name, scope=dl.AppScope.SYSTEM)
         print(f'installed! app id: {app.id}')
     print(f'Done!')
 
 
 if __name__ == "__main__":
     dl.setenv('rc')
-    project = dl.projects.get(project_name="COCO ors")
-    # project = dl.projects.get(project_id="2bb16c5f-081f-4afb-91e0-78699c1b3476")
-    # bump()
+    project = dl.projects.get(project_name="DataloopTasks")
     with open('dataloop.json') as f:
         manifest = json.load(f)
     publish_and_install(manifest=manifest, project=project)
