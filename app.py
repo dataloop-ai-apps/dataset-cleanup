@@ -42,10 +42,10 @@ class Runner(dl.BaseServiceRunner):
         print(f'list: {os.listdir(os.getcwd())}')
         print(f'current path: {os.getcwd()}')
         proc = subprocess.Popen(
-            'bash start.sh',
+            ['bash', 'start.sh'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            shell=True,
+            shell=False,
             text=True,
         )
         try:

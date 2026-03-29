@@ -7,7 +7,6 @@ import json
 import time
 import io
 import pytz
-import tempfile
 from dtlpy_exporter import ExportBase, ExportStatus
 from sklearn.preprocessing import normalize
 from faiss import IndexHNSWFlat, METRIC_ABS_INNER_PRODUCT
