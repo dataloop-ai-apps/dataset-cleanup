@@ -9,7 +9,7 @@ import io
 import pytz
 from dtlpy_exporter import ExportBase, ExportStatus
 from sklearn.preprocessing import normalize
-from faiss import IndexHNSWFlat, METRIC_ABS_INNER_PRODUCT
+from faiss import IndexHNSWFlat, METRIC_INNER_PRODUCT
 
 logger = logging.getLogger('[EXPORTER]')
 logging.basicConfig(level='INFO')
@@ -129,7 +129,7 @@ class Exporter(ExportBase):
                 large_k = min(len(normalized_data), 150)
                 dimension = normalized_data.shape[1]
                 hnsw_index = IndexHNSWFlat(dimension, 32)
-                hnsw_index.metric_type = METRIC_ABS_INNER_PRODUCT
+                hnsw_index.metric_type = METRIC_INNER_PRODUCT
                 hnsw_index.hnsw.efSearch = 50
                 hnsw_index.add(normalized_data)
                 distances, indices = hnsw_index.search(normalized_data, k=large_k)

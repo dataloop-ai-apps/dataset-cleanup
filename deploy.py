@@ -41,6 +41,8 @@ def publish_and_install(project, manifest):
 
 if __name__ == "__main__":
     dl.setenv('rc')
+    if dl.token_expired():
+        dl.login()
     project = dl.projects.get(project_name="DataloopTasks")
     with open('dataloop.json') as f:
         manifest = json.load(f)
