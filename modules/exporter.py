@@ -128,13 +128,12 @@ class Exporter(ExportBase):
                 normalized_data = normalize(vectors, norm='l2')
                 large_k = min(len(normalized_data), 150)
                 dimension = normalized_data.shape[1]
-                hnsw_index = IndexHNSWFlat(dimension, 32)
-                hnsw_index.metric_type = METRIC_INNER_PRODUCT
+                hnsw_index = IndexHNSWFlat(dimension, 32, METRIC_INNER_PRODUCT)
                 hnsw_index.hnsw.efSearch = 50
                 hnsw_index.add(normalized_data)
                 distances, indices = hnsw_index.search(normalized_data, k=large_k)
-                distances = np.save(f"{self._vectors_dir}/{key}_distances.npy", distances)
-                indices = np.save(f"{self._vectors_dir}/{key}_indices.npy", indices)
+                np.save(f"{self._vectors_dir}/{key}_distances.npy", distances)
+                np.save(f"{self._vectors_dir}/{key}_indices.npy", indices)
                 
                 self.progress = round(round((idx + 1) / len(self.feature_set_ids) * 10, 0) + 80)
 
