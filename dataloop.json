@@ -68,7 +68,7 @@
                     "podType": "highmem-l",
                     "numReplicas": 1,
                     "concurrency": 10,
-                    "runnerImage": "gcr.io/viewo-g/piper/agent/cpu/dataset-cleanup:0.0.6",
+                    "runnerImage": "hub.dataloop.ai/dtlpy-runner-images/cpu:python3.13_full_bci_latest",
                     "singleAgent": false,
                     "autoscaler": {
                         "type": "rabbitmq",
