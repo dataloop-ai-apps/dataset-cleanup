@@ -4,7 +4,7 @@
     "displayName": "Dataset Cleanuplocal",
     "description": "Provides cleanuplocal on the dataset",
     "attributes": {
-        "Provider": "Dataloop",
+        "Provider": "DDOE",
         "Category": "Element",
         "Element Type": "Studio"
     },

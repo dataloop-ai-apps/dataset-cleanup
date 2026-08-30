@@ -4,7 +4,7 @@ A Dataset Tab App for Cleaning Datasets
 
 ## Prerequisites
 
-Before using the app, ensure you have installed an embeddings model into your Dataloop datasets. This step is crucial for enabling the similarity check functionality.
+Before using the app, ensure you have installed an embeddings model into your DDOE datasets. This step is crucial for enabling the similarity check functionality.
 
 ## Overview
 

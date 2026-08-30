@@ -4,7 +4,7 @@
     "displayName": "Dataset Cleanup",
     "description": "Provides cleanup on the dataset",
     "attributes": {
-        "Provider": "Dataloop",
+        "Provider": "DDOE",
         "Category": "Application",
         "Application Type": "Data Management"
     },
