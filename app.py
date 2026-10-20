@@ -1,15 +1,17 @@
+import asyncio
 import json
 import logging
 import os
 import select
 import subprocess
 from collections import defaultdict
+from typing import Optional
 
 import dtlpy as dl
 import numpy as np
 from fastapi import APIRouter, BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from faiss import IndexFlatIP, IndexHNSWFlat, METRIC_INNER_PRODUCT
 from sklearn.preprocessing import normalize
@@ -95,6 +97,7 @@ async def get_items(
     min_v: float = 0,
     max_v: float = 1.0,
     clusterSize: int = 2,
+    filter: Optional[str] = None,
 ):
     """
     Retrieves items from a dataset based on the specified parameters.
@@ -130,6 +133,25 @@ async def get_items(
             for line in in_file:
                 items.append(json.loads(line))
 
+        # Pre-compute the set of item IDs that pass the DQL filter, if one was provided.
+        # Query the platform with the DQL filter as-is, then intersect with the
+        # feature-set IDs in Python — avoids embedding $in inside the DQL query
+        # which can interact unexpectedly with nested $and conditions.
+        passing_ids = None
+        if filter:
+            try:
+                dql_filter = json.loads(filter)
+                if dql_filter:
+                    dl_filters = dl.Filters(custom_filter=dql_filter)
+                    fetched = await asyncio.to_thread(
+                        lambda: list(exporter.dataset.items.list(filters=dl_filters).all())
+                    )
+                    platform_ids = {item.id for item in fetched}
+                    feature_set_id_set = set(i['itemId'] for i in items)
+                    passing_ids = platform_ids & feature_set_id_set
+            except Exception as e:
+                logger.warning("Could not apply DQL filter: %s", e)
+
         eps_value = similarity
 
         if type == 'Similarity':
@@ -159,6 +181,9 @@ async def get_items(
             for _, members in sorted_clusters:
                 # Remove used members
                 unique_members = [m for m in members if m not in used_items]
+                # Apply DQL filter
+                if passing_ids is not None:
+                    unique_members = [m for m in unique_members if items[m]['itemId'] in passing_ids]
                 if len(unique_members) >= clusterSize:
                     
                     # Try to find the first annotated item, otherwise take the first one
@@ -210,6 +235,7 @@ async def get_items(
                 items[i]
                 for i, dist in enumerate(distances)
                 if dist[1] > eps_value  # Adjust for cosine similarity
+                and (passing_ids is None or items[i]['itemId'] in passing_ids)
             ]
 
             return HTMLResponse(
@@ -220,6 +246,21 @@ async def get_items(
         items_count, ids = exporter.quality_score(
             type, min_v, max_v, pagination, limit, True
         )
+        if filter and ids:
+            try:
+                dql_filter = json.loads(filter)
+                if dql_filter:
+                    dl_filters = dl.Filters(custom_filter=dql_filter)
+                    fetched = await asyncio.to_thread(
+                        lambda: list(exporter.dataset.items.list(filters=dl_filters).all())
+                    )
+                    platform_ids = {item.id for item in fetched}
+                    quality_id_set = set(item['itemId'] for item in ids)
+                    passing = platform_ids & quality_id_set
+                    ids = [item for item in ids if item['itemId'] in passing]
+                    items_count = len(ids)
+            except Exception as e:
+                logger.warning("Could not apply DQL filter to quality score: %s", e)
         return HTMLResponse(
             json.dumps({'items': ids, 'total': items_count}, indent=2), status_code=200
         )
