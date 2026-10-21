@@ -919,6 +919,7 @@ const toggleSortDirection = () => {
 
 .range-all {
     width: 20%;
+    min-width: fit-content;
     display: flex;
     justify-content: space-between;
 }
