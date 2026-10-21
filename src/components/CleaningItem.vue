@@ -321,7 +321,7 @@ import CleanupLoadingAnimation from './CleanupLoadingAnimation.vue'
 import ItemThumbnailImage from './ItemThumbnailImage.vue'
 import EmptyState from './EmptyState.vue'
 import ReloadProgress from './ReloadProgress.vue'
-import { ref, computed, nextTick, defineExpose, defineEmits } from 'vue-demi'
+import { ref, computed, nextTick, defineExpose, defineEmits, watch } from 'vue-demi'
 import debounce from './debounce'
 import { addItems } from './items'
 
@@ -356,6 +356,7 @@ type Props = {
     lastUpdated: string
     progress: number
     message: string
+    activeQuery?: object | null
 }
 
 const showMainContent = computed(() => {
@@ -408,6 +409,12 @@ const checkMetadata = async () => {
 }
 
 const props = defineProps<Props>()
+
+watch(() => props.activeQuery, (newVal, oldVal) => {
+    if (JSON.stringify(newVal) !== JSON.stringify(oldVal) && featureSetCalled.value) {
+        getImages()
+    }
+})
 
 const thumbSize = ref(128)
 
@@ -717,9 +724,12 @@ const getImages = debounce(async () => {
     clear_all()
     if (loading.value) return // Prevent function from running if it's already loading
     loading.value = true
+    const filterParam = props.activeQuery
+        ? `&filter=${encodeURIComponent(JSON.stringify(props.activeQuery))}`
+        : ''
     if (selectedType.value === 'Similarity') {
         const response = await fetch(
-            `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}`
+            `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}${filterParam}`
         )
         const clusters = await response.json()
         for (const cluster of clusters) {
@@ -750,12 +760,15 @@ const updateRowsPerPage = (value: number) => {
 }
 
 const fetchCoruptedImages = async () => {
+    const filterParam = props.activeQuery
+        ? `&filter=${encodeURIComponent(JSON.stringify(props.activeQuery))}`
+        : ''
     const response = await fetch(
         `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${
             selectedType.value
         }&similarity=${anomality.value}&pagination=${coruptPage.value - 1}&limit=${
             rowsPerPage.value
-        }&min_v=${minmax.value.min}&max_v=${minmax.value.max}`
+        }&min_v=${minmax.value.min}&max_v=${minmax.value.max}${filterParam}`
     )
     const result = await response.json()
     coruptedImages.value = addItems(result.items)
@@ -906,6 +919,7 @@ const toggleSortDirection = () => {
 
 .range-all {
     width: 20%;
+    min-width: fit-content;
     display: flex;
     justify-content: space-between;
 }

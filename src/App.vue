@@ -11,6 +11,7 @@
                 :last-updated="formattedLastUpdated"
                 :progress="progressValue"
                 :message="message"
+                :active-query="activeQuery"
                 @trigger-refresh="handleEmptystateTrigger"
                 @trigger-reload="handleReload"
             />
@@ -36,6 +37,7 @@ const datasetId = ref<string>(null)
 const projectId = ref<string>(null)
 const frameLoadFailed = ref<boolean>(false)
 const cleaningItemRef = ref(null)
+const activeQuery = ref<object | null>(null)
 
 function triggerCleaningMethod(data: any) {
     if (cleaningItemRef.value) {
@@ -153,6 +155,9 @@ onMounted(() => {
             name: 'dl:items:update:selection',
             payload: []
         })
+    })
+    window.dl.on('activeQuery', (data: any) => {
+        activeQuery.value = data?.filter ?? null
     })
 })
 
