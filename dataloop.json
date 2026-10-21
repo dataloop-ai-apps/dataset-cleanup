@@ -1,5 +1,5 @@
 {
-    "version": "0.0.55",
+    "version": "0.0.56",
     "name": "dataset-cleanup",
     "displayName": "Dataset Cleanup",
     "description": "Provides cleanup on the dataset",
