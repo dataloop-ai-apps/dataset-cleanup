@@ -29,7 +29,7 @@
         "toolbars": [
             {
                 "name": "cleanup",
-                "displayName": "Cleanup",
+                "displayName": "Cleanup-test",
                 "icon": "",
                 "invoke": {
                     "type": "panel",
