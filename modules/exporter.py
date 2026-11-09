@@ -32,18 +32,19 @@ class Exporter(ExportBase):
         Processes the dataset and extracts feature sets.
     get_feature_sets_names()
         Returns a dictionary with feature set names and their counts.
-    install_start_exec(dpk_name, service_name, funtion_name, exec_type)
+    install_start_exec(dpk_name, service_name, funtion_name, exec_type, sdk)
         Installs and starts the execution of a specified function.
-    start_execution(exec_type)
+    start_execution(exec_type, sdk)
         Starts the execution of a specified type.
-    wait_for_execution(execution_id, exec_type)
+    wait_for_execution(execution_id, exec_type, sdk, project_id)
         Waits for the execution to complete and updates the status and progress.
     quality_score(qtype, min_v, max_v, limit=0, pagination=100, return_ids=False)
         Filters items in the dataset based on quality scores and returns the count or item details.
     """
 
-    def __init__(self, dataset_id, save_dir = './'):
-        super().__init__(dataset_id, save_dir)
+    def __init__(self, dataset_id, sdk, save_dir='./'):
+        super().__init__(dataset_id, save_dir, sdk=sdk)
+        self.set_sdk(sdk)
         if not hasattr(self, 'feature_sets_with_len'):
             self.execution_running = {
                 'clip': {
@@ -152,7 +153,7 @@ class Exporter(ExportBase):
                 writers[key].close()
 
 
-    def install_start_exec(self, dpk_name, service_name, funtion_name, exec_type):
+    def install_start_exec(self, dpk_name, service_name, funtion_name, exec_type, sdk):
         """
         Installs and starts the execution of a specified function within a service.
 
@@ -161,15 +162,16 @@ class Exporter(ExportBase):
             service_name (str): The name of the service where the function will be executed.
             funtion_name (str): The name of the function to be executed.
             exec_type (str): The type of execution to be performed.
+            sdk: The calling user's SDK; the install and execution run under that user.
 
         Returns:
             None
         """
-        project = self.dataset.project
+        project = sdk.datasets.get(dataset_id=self.dataset_id).project
         filters = dl.Filters(resource='apps')
         filters.add(field='dpkName', values=dpk_name)
         if project.apps.list(filters=filters).items_count == 0:
-            dpk = dl.dpks.get(dpk_name=dpk_name)
+            dpk = sdk.dpks.get(dpk_name=dpk_name)
             project.apps.install(dpk=dpk)
         service = project.services.get(service_name=service_name)
         execution = project.executions.create(
@@ -179,12 +181,17 @@ class Exporter(ExportBase):
         )
         thread = threading.Thread(
             target=self.wait_for_execution,
-            kwargs={"execution_id": execution.id, "exec_type": exec_type},
+            kwargs={
+                "execution_id": execution.id,
+                "exec_type": exec_type,
+                "sdk": sdk,
+                "project_id": project.id,
+            },
         )
         thread.daemon = True
         thread.start()
 
-    def start_execution(self, exec_type):
+    def start_execution(self, exec_type, sdk):
         """
         Starts the execution process for the given execution type.
 
@@ -194,6 +201,7 @@ class Exporter(ExportBase):
         Args:
             exec_type (str): The type of execution to start. Supported values are
                              'clip' and 'quality-score-generator'.
+            sdk: The calling user's SDK.
 
         Raises:
             KeyError: If the provided exec_type is not found in the execution_running dictionary.
@@ -204,7 +212,7 @@ class Exporter(ExportBase):
 
         if exec_type == 'clip':
             self.install_start_exec(
-                'clip-image-search', 'clip-extraction', 'extract_dataset', 'clip'
+                'clip-image-search', 'clip-extraction', 'extract_dataset', 'clip', sdk
             )
         elif exec_type == 'quality-score-generator':
             self.install_start_exec(
@@ -212,9 +220,10 @@ class Exporter(ExportBase):
                 'quality-scores-generator',
                 'dataset_scores_generator',
                 'quality-score-generator',
+                sdk,
             )
 
-    def wait_for_execution(self, execution_id, exec_type):
+    def wait_for_execution(self, execution_id, exec_type, sdk, project_id):
         """
         Waits for the execution of a given execution ID to complete.
 
@@ -225,6 +234,8 @@ class Exporter(ExportBase):
         Args:
             execution_id (str): The ID of the execution to wait for.
             exec_type (str): The type of execution being waited on.
+            sdk: The SDK of the user who started the execution.
+            project_id (str): The project the execution belongs to.
 
         Raises:
             TimeoutError: If the execution does not complete within the specified timeout.
@@ -240,7 +251,7 @@ class Exporter(ExportBase):
         """
 
         try:
-            project = dl.projects.get(project_id=self.dataset.project.id)
+            project = sdk.projects.get(project_id=project_id)
             timeout = 60 * 60 * 2
             max_sleep_time = 10
             backoff_factor = 1
@@ -289,6 +300,7 @@ class Exporter(ExportBase):
             self.execution_running[exec_type]['status'] = 'ready'
 
             self.progress = 0
+            self.set_sdk(sdk)
             self.run_whole_process()
 
         except Exception as e:
@@ -298,7 +310,7 @@ class Exporter(ExportBase):
             raise
 
     def quality_score(
-        self, qtype, min_v, max_v, limit=0, pagination=100, return_ids=False
+        self, qtype, min_v, max_v, limit=0, pagination=100, return_ids=False, dataset=None
     ):
         """
         Calculate the quality score of items in the dataset based on specified criteria.
@@ -310,6 +322,8 @@ class Exporter(ExportBase):
         - limit (int, optional): The maximum number of items to return. Default is 0 (no limit).
         - pagination (int, optional): The number of items to return per page. Default is 100.
         - return_ids (bool, optional): Whether to return item IDs and metadata. Default is False.
+        - dataset (optional): The dataset entity to query, fetched with the calling user's SDK.
+          Defaults to the exporter's own, which is bound to whichever user ran the export last.
 
         Returns:
         - tuple: If return_ids is True, returns a tuple containing the count of items and a list of dictionaries with item metadata.
@@ -322,7 +336,7 @@ class Exporter(ExportBase):
         - If the specified quality type is not supported, an error is logged and the function returns 0 or an empty list based on return_ids.
         """
 
-        dataset = self.dataset
+        dataset = dataset or self.dataset
         items_count = 0
         if qtype == 'Darkness/Brightness':
             metadata_field = 'metadata.user.quality_scores.darkness_score'

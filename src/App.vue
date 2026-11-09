@@ -64,7 +64,7 @@ const isDark = computed<boolean>(() => {
 })
 
 const updateStatus = async () => {
-    const exportStatus = await fetch(`/api/export/status?datasetId=${datasetId.value}`)
+    const exportStatus = await fetch(`api/export/status?datasetId=${datasetId.value}`)
     if (!exportStatus.ok) {
         throw new Error(`HTTP error! status: ${exportStatus.status}`)
     }
@@ -102,7 +102,7 @@ const handleInitialFrameLoading = async () => {
     buildReady.value = false
     try {
         if (datasetId.value) {
-            await fetch(`/api/export/run?datasetId=${datasetId.value}&cache=yes`)
+            await fetch(`api/export/run?datasetId=${datasetId.value}&cache=yes`)
             const existingStatus = await updateStatus()
             if (!existingStatus) {
                 await pollStatus()
@@ -198,7 +198,7 @@ const handleReload = async () => {
 
     progressValue.value = 0
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    await fetch(`/api/export/run?datasetId=${datasetId.value}&&cache=no`)
+    await fetch(`api/export/run?datasetId=${datasetId.value}&&cache=no`)
     await pollStatus()
 }
 </script>

@@ -1,5 +1,5 @@
 {
-    "version": "0.0.56",
+    "version": "0.0.59",
     "name": "dataset-cleanup",
     "displayName": "Dataset Cleanup",
     "description": "Provides cleanup on the dataset",
@@ -63,7 +63,6 @@
                 "moduleName": "cleanup",
                 "panelNames": ["cleanup"],
                 "initParams": {},
-                "botUserName": "tab-apps@dataloop.ai",
                 "runtime": {
                     "podType": "highmem-l",
                     "numReplicas": 1,
@@ -85,5 +84,6 @@
                 "maxAttempts": 3
             }
         ]
-    }
+    },
+    "trusted": true
 }

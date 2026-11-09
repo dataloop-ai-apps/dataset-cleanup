@@ -1,1 +1,1 @@
-pip install https://storage.googleapis.com/dtlpy/single-export-be/dtlpy_exporter-0.1.8-py3-none-any.whl
+pip install https://storage.googleapis.com/dtlpy/single-export-be/dtlpy_exporter-0.1.10-py3-none-any.whl
