@@ -5,11 +5,12 @@ import vue from '@vitejs/plugin-vue'
 import viteBasicSslPlugin from '@vitejs/plugin-basic-ssl'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     build: {
         outDir: 'panels/cleanup'
     },
-    base: '/cleanup',
+    // Built panel is served by piper under /api/v1/apps/<name>/panels/cleanup/, so assets must be relative.
+    base: command === 'build' ? './' : '/cleanup',
     server: {
         host: '0.0.0.0',
         https: false,
@@ -43,4 +44,4 @@ export default defineConfig({
             reporter: ['lcovonly', 'text']
         }
     }
-})
+}))

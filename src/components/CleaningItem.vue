@@ -404,7 +404,7 @@ const triggerReload = () => {
 }
 
 const checkMetadata = async () => {
-    const response = await fetch(`/api/get_quality_score_exist?datasetId=${props.datasetId}`)
+    const response = await fetch(`api/get_quality_score_exist?datasetId=${props.datasetId}`)
     qualityCount.value = await response.json()
 }
 
@@ -729,7 +729,7 @@ const getImages = debounce(async () => {
         : ''
     if (selectedType.value === 'Similarity') {
         const response = await fetch(
-            `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}${filterParam}`
+            `api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${selectedType.value}&similarity=${similarity.value}&clusterSize=${minClusterSize.value}${filterParam}`
         )
         const clusters = await response.json()
         for (const cluster of clusters) {
@@ -764,7 +764,7 @@ const fetchCoruptedImages = async () => {
         ? `&filter=${encodeURIComponent(JSON.stringify(props.activeQuery))}`
         : ''
     const response = await fetch(
-        `/api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${
+        `api/get_items?datasetId=${props.datasetId}&featureSetName=${selected.value}&type=${
             selectedType.value
         }&similarity=${anomality.value}&pagination=${coruptPage.value - 1}&limit=${
             rowsPerPage.value
@@ -783,7 +783,7 @@ async function reset() {
 }
 
 async function getFeatureSets() {
-    const feature_sets = await fetch(`/api/available_feature_sets?datasetId=${props.datasetId}`)
+    const feature_sets = await fetch(`api/available_feature_sets?datasetId=${props.datasetId}`)
     const response = await feature_sets.json()
     featureSetDict.value = response
     options.value = Object.keys(response)
@@ -885,7 +885,7 @@ const toggleSortDirection = () => {
     display: flex; /* Establishes the flex container */
     justify-content: space-between;
     align-items: center; /* Vertically centers the items in the container */
-    padding-bottom: 10px;
+    padding-block: 10px;
     border-bottom: 1px solid var(--dell-gray-300);
 }
 

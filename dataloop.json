@@ -63,7 +63,6 @@
                 "moduleName": "cleanup",
                 "panelNames": ["cleanup"],
                 "initParams": {},
-                "botUserName": "tab-apps@dataloop.ai",
                 "runtime": {
                     "podType": "highmem-l",
                     "numReplicas": 1,
@@ -85,5 +84,6 @@
                 "maxAttempts": 3
             }
         ]
-    }
+    },
+    "trusted": true
 }

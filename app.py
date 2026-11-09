@@ -9,7 +9,7 @@ from typing import Optional
 
 import dtlpy as dl
 import numpy as np
-from fastapi import APIRouter, BackgroundTasks, FastAPI
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +17,7 @@ from faiss import IndexFlatIP, IndexHNSWFlat, METRIC_INNER_PRODUCT
 from sklearn.preprocessing import normalize
 
 from modules.exporter import Exporter
+from modules.user_sdk import async_verify_dataset_access, get_user_sdk
 from dtlpy_exporter import ExportStatus
 
 logger = logging.getLogger('[CLEANUP]')
@@ -73,6 +74,21 @@ class Runner(dl.BaseServiceRunner):
 app = FastAPI()
 router = APIRouter()
 
+# The panel is a trusted DPK, so piper proxies it at /api/v1/apps/<name>/panels/<panelName>/...
+# and forwards the request with only "/api/v1/apps/<name>/panels" stripped. Strip the panel
+# name too so every route below stays mounted at its normal path.
+PANEL_NAME = "cleanup"
+
+
+@app.middleware("http")
+async def strip_panel_prefix(request: Request, call_next):
+    path = request.scope.get("path", "")
+    prefix = f"/{PANEL_NAME}"
+    if path == prefix or path.startswith(prefix + "/"):
+        request.scope["path"] = path[len(prefix):] or "/"
+    return await call_next(request)
+
+
 origins = [
     "*",  # allow all
 ]
@@ -84,6 +100,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def get_exporter(dataset_id: str, sdk) -> Exporter:
+    """The per-dataset exporter, bound to the calling user's SDK."""
+    return Exporter(dataset_id=dataset_id, sdk=sdk, save_dir=f'/tmp/app/{dataset_id}')
+
+
+async def get_dataset(sdk, dataset_id: str):
+    """The dataset fetched as the calling user, so listings run with their permissions."""
+    return await asyncio.to_thread(sdk.datasets.get, dataset_id=dataset_id)
 
 
 @router.get("/get_items")
@@ -98,6 +124,7 @@ async def get_items(
     max_v: float = 1.0,
     clusterSize: int = 2,
     filter: Optional[str] = None,
+    sdk=Depends(get_user_sdk),
 ):
     """
     Retrieves items from a dataset based on the specified parameters.
@@ -123,7 +150,8 @@ async def get_items(
             - 'Darkness/Brightness': Retrieves items based on the darkness/brightness quality score.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
     if type == 'Similarity' or type == 'Anomalies':
         feature_set_id = exporter.feature_sets_mapping.get(featureSetName)
         distances = np.load(f"{exporter._vectors_dir}/{feature_set_id}_distances.npy")
@@ -143,8 +171,9 @@ async def get_items(
                 dql_filter = json.loads(filter)
                 if dql_filter:
                     dl_filters = dl.Filters(custom_filter=dql_filter)
+                    dataset = await get_dataset(sdk, datasetId)
                     fetched = await asyncio.to_thread(
-                        lambda: list(exporter.dataset.items.list(filters=dl_filters).all())
+                        lambda: list(dataset.items.list(filters=dl_filters).all())
                     )
                     platform_ids = {item.id for item in fetched}
                     feature_set_id_set = set(i['itemId'] for i in items)
@@ -243,8 +272,9 @@ async def get_items(
             )
 
     else:
+        dataset = await get_dataset(sdk, datasetId)
         items_count, ids = exporter.quality_score(
-            type, min_v, max_v, pagination, limit, True
+            type, min_v, max_v, pagination, limit, True, dataset=dataset
         )
         if filter and ids:
             try:
@@ -252,7 +282,7 @@ async def get_items(
                 if dql_filter:
                     dl_filters = dl.Filters(custom_filter=dql_filter)
                     fetched = await asyncio.to_thread(
-                        lambda: list(exporter.dataset.items.list(filters=dl_filters).all())
+                        lambda: list(dataset.items.list(filters=dl_filters).all())
                     )
                     platform_ids = {item.id for item in fetched}
                     quality_id_set = set(item['itemId'] for item in ids)
@@ -267,7 +297,7 @@ async def get_items(
 
 
 @router.get("/export/status")
-async def export_status(datasetId: str):
+async def export_status(datasetId: str, sdk=Depends(get_user_sdk)):
     """
     Export the status of a dataset.
 
@@ -282,7 +312,8 @@ async def export_status(datasetId: str):
         HTMLResponse: An HTML response containing the export status in JSON format with a status code of 200.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
     status = {
         'progress': int(exporter.progress),
         'exportDate': exporter.last_update,
@@ -294,7 +325,12 @@ async def export_status(datasetId: str):
 
 
 @router.get("/export/run")
-async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTasks):
+async def export_run(
+    datasetId: str,
+    cache: str,
+    background_tasks: BackgroundTasks,
+    sdk=Depends(get_user_sdk),
+):
     """
     Initiates an export run for the given dataset.
 
@@ -307,10 +343,12 @@ async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTas
         HTMLResponse: A response indicating that the export process has started.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
 
     # Quick check: if no feature sets exist, skip export entirely
-    feature_sets_count = exporter.dataset.feature_sets.list().items_count
+    dataset = await get_dataset(sdk, datasetId)
+    feature_sets_count = dataset.feature_sets.list().items_count
     if feature_sets_count == 0:
         logger.info("No feature sets found for dataset %s, skipping export", datasetId)
         exporter.progress = 100
@@ -320,12 +358,12 @@ async def export_run(datasetId: str, cache: str, background_tasks: BackgroundTas
 
     exporter.progress = 0
     exporter.message = ""
-    background_tasks.add_task(exporter.check_and_run, use_cache=cache)
+    background_tasks.add_task(exporter.check_and_run, use_cache=cache, sdk=sdk)
     return HTMLResponse(json.dumps({'status': 'started'}), status_code=200)
 
 
 @router.get("/available_feature_sets")
-async def available_feature_sets(datasetId: str):
+async def available_feature_sets(datasetId: str, sdk=Depends(get_user_sdk)):
     """
     Retrieve the available feature sets for a given dataset.
 
@@ -336,13 +374,14 @@ async def available_feature_sets(datasetId: str):
         HTMLResponse: An HTML response containing a JSON-encoded list of feature set names and a status code of 200.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
     print(exporter.feature_sets_with_len)
     return HTMLResponse(json.dumps(exporter.feature_sets_with_len), status_code=200)
 
 
 @router.get("/start_execution")
-async def start_execution(datasetId: str, exec_type: str):
+async def start_execution(datasetId: str, exec_type: str, sdk=Depends(get_user_sdk)):
     """
     Starts the execution of a dataset export process.
     Args:
@@ -352,8 +391,9 @@ async def start_execution(datasetId: str, exec_type: str):
         HTMLResponse: A response object containing the status of the execution process in JSON format.
     """
 
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
-    exporter.start_execution(exec_type)
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
+    exporter.start_execution(exec_type, sdk)
     status = {
         'progress': exporter.execution_running.get(exec_type)['progress'],
         'status': exporter.execution_running.get(exec_type)['status'],
@@ -363,7 +403,7 @@ async def start_execution(datasetId: str, exec_type: str):
 
 
 @router.get("/get_execution_status")
-async def get_execution_status(datasetId: str, exec_type: str):
+async def get_execution_status(datasetId: str, exec_type: str, sdk=Depends(get_user_sdk)):
     """
     Asynchronously retrieves the execution status of a dataset export operation.
 
@@ -374,7 +414,8 @@ async def get_execution_status(datasetId: str, exec_type: str):
     Returns:
         HTMLResponse: A response object containing the execution status in JSON format with a status code of 200.
     """
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
     status = {
         'progress': exporter.execution_running.get(exec_type)['progress'],
         'status': exporter.execution_running.get(exec_type)['status'],
@@ -384,7 +425,7 @@ async def get_execution_status(datasetId: str, exec_type: str):
 
 
 @router.get("/get_quality_score_exist")
-async def get_quality_score_exist(datasetId: str):
+async def get_quality_score_exist(datasetId: str, sdk=Depends(get_user_sdk)):
     """
     Asynchronously retrieves the quality score for a given dataset.
 
@@ -394,8 +435,10 @@ async def get_quality_score_exist(datasetId: str):
     Returns:
         HTMLResponse: A response object containing the quality score in JSON format and a status code of 200.
     """
-    exporter: Exporter = Exporter(dataset_id=datasetId, save_dir=f'/tmp/app/{datasetId}')
-    items_count = exporter.quality_score('Darkness/Brightness', 0, 1)
+    await async_verify_dataset_access(sdk, datasetId)
+    exporter = get_exporter(datasetId, sdk)
+    dataset = await get_dataset(sdk, datasetId)
+    items_count = exporter.quality_score('Darkness/Brightness', 0, 1, dataset=dataset)
     status = items_count
     return HTMLResponse(json.dumps(status), status_code=200)
 
@@ -403,7 +446,7 @@ async def get_quality_score_exist(datasetId: str):
 app.include_router(router, prefix='/api')
 
 app.mount(
-    "/cleanup", StaticFiles(directory="panels/cleanup", html=True), name='cleanup'
+    "/", StaticFiles(directory="panels/cleanup", html=True), name='cleanup'
 )
 
 

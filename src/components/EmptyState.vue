@@ -81,7 +81,7 @@ const showProgress = computed(() => {
 onMounted(async () => {
     if (!props.execType) return
     const response = await fetch(
-        `/api/get_execution_status?datasetId=${props.datasetId}&exec_type=${props.execType}`
+        `api/get_execution_status?datasetId=${props.datasetId}&exec_type=${props.execType}`
     )
     const result = await response.json()
     status.value = result.status
@@ -94,7 +94,7 @@ onMounted(async () => {
 
 const startExecution = async () => {
     const response = await fetch(
-        `/api/start_execution?datasetId=${props.datasetId}&exec_type=${props.execType}`
+        `api/start_execution?datasetId=${props.datasetId}&exec_type=${props.execType}`
     )
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -126,7 +126,7 @@ const pollStatus = async () => {
 
 const updateStatus = async () => {
     const exportStatus = await fetch(
-        `/api/get_execution_status?datasetId=${props.datasetId}&exec_type=${props.execType}`
+        `api/get_execution_status?datasetId=${props.datasetId}&exec_type=${props.execType}`
     )
     if (!exportStatus.ok) {
         throw new Error(`HTTP error! status: ${exportStatus.status}`)
