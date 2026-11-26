@@ -50,12 +50,13 @@ const formattedLastUpdated = computed(() => {
     if (!timestamp || isNaN(timestamp) || timestamp <= 0) return ''
 
     const date = new Date(timestamp * 1000) // Convert to milliseconds
-    return new Intl.DateTimeFormat('default', {
+    return new Intl.DateTimeFormat('en-GB', {
         year: 'numeric',
-        month: '2-digit',
+        month: 'short',
         day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false
     }).format(date)
 })
 

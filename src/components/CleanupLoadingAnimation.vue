@@ -52,7 +52,7 @@
         <div v-if="showProgressBar" class="progress-bar-wrapper">
             <DlProgressBar
                 label="Progress"
-                :width="progressBarWidth"
+                width="100%"
                 :show-value="true"
                 :show-percentage="true"
                 :value="progress"
@@ -76,7 +76,7 @@ const props = withDefaults(
     }
 )
 
-const viewBox = '0 0 600 400'
+const viewBox = '150 10 300 300'
 
 const clipPathId = `file-clip-${Math.random().toString(36).slice(2)}`
 const fileIconId = `file-icon-${Math.random().toString(36).slice(2)}`
@@ -117,12 +117,6 @@ const layer2Dots = computed(() => {
     return dots
 })
 
-const progressBarWidth = computed(() => {
-    if (typeof window === 'undefined') return '240px'
-    const w = window.innerWidth - 32
-    return `${Math.min(520, Math.max(240, w))}px`
-})
-
 let currentX = 0
 let currentY = 0
 let targetX = 0
@@ -159,26 +153,31 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/*
+ * Sizes follow the tab (container) width, not the window. Per the Figma spec they scale
+ * linearly with the tab width between 1440px (minimum) and 1920px (maximum):
+ *   animation   120px -> 480px square, 24px above and between
+ *   progress    240px -> 520px wide, 16px margin on each side
+ */
 .cleanup-loader {
+    container-type: inline-size;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    width: 100%;
     margin-top: 24px;
     gap: 24px;
 }
 
 .loader-container {
-    width: 100%;
-    max-width: 480px;
-    min-width: 120px;
-    max-height: 480px;
-    min-height: 120px;
-    aspect-ratio: 600 / 400;
-    padding: 20px;
+    --size: clamp(120px, min(120px + (100cqw - 1440px) * 0.75, 100vh - 210px), 480px);
+    width: var(--size);
+    max-width: 100%;
+    aspect-ratio: 1;
 }
 
 .loader-svg {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: contain;
@@ -263,9 +262,6 @@ onUnmounted(() => {
 }
 
 .progress-bar-wrapper {
-    width: 100%;
-    max-width: 520px;
-    min-width: 240px;
-    padding: 0 16px;
+    width: min(100cqw - 32px, clamp(240px, 240px + (100cqw - 1440px) * 0.5833, 520px));
 }
 </style>

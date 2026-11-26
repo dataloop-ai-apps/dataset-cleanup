@@ -1,77 +1,113 @@
 <!-- Cleaning.vue -->
 <template>
     <div v-if="mounted">
-        <div class="flex-container">
-            <DlSelect
-                v-model="selected"
-                :options="options"
-                :disabled="['Darkness/Brightness', 'Blurriness/Sharpness'].includes(selectedType)"
-                width="25%"
-                @change="SelectedChange"
-            />
-            <DlSelect
-                v-model="selectedType"
-                :options="types"
-                width="25%"
-                @change="SelectedTypeChange"
-            />
+        <div class="toolbar">
+            <div class="flex-container">
+                <div class="main-controls">
+                    <ReloadProgress
+                        :last-updated="lastUpdated"
+                        :progress="progress"
+                        @reload="triggerReload"
+                    />
 
-            <div v-if="selectedType == 'Similarity'" class="range-all">
-                <DlSlider
-                    v-model="similarity"
-                    class="slider w-100-120px"
-                    text="Similarity"
-                    :min="0.001"
-                    :max="0.3"
-                    :step="0.001"
-                />
+                    <div class="controls">
+                        <div class="tags">
+                            <DlSelect
+                                v-model="selected"
+                                class="toolbar-select"
+                                menu-class="toolbar-menu"
+                                :options="options"
+                                highlight-selected
+                                :disabled="
+                                    ['Darkness/Brightness', 'Blurriness/Sharpness'].includes(
+                                        selectedType
+                                    )
+                                "
+                                width="auto"
+                                @change="SelectedChange"
+                            />
+                            <DlSelect
+                                v-model="selectedType"
+                                class="toolbar-select"
+                                menu-class="toolbar-menu"
+                                :options="types"
+                                width="auto"
+                                @change="SelectedTypeChange"
+                            >
+                                <template #option="{ opt }">
+                                    <DlRadio
+                                        :model-value="selectedType"
+                                        :value="opt"
+                                        :label="opt"
+                                        class="type-radio"
+                                    />
+                                </template>
+                            </DlSelect>
+                        </div>
 
-                <DlSelect
-                    v-model="minClusterSize"
-                    class="select-s"
-                    :options="clusterSizes"
-                    size="m"
-                    title="Size"
-                    tooltip="Minimal Cluster size"
-                    width="80px"
-                />
+                        <template v-if="selectedType == 'Similarity'">
+                            <SimilarityControls
+                                :similarity="similarity"
+                                :min-cluster-size="minClusterSize"
+                                @update:similarity="similarity = $event"
+                                @update:min-cluster-size="minClusterSize = $event"
+                                :cluster-sizes="clusterSizes"
+                            />
+                            <div
+                                class="settings-button"
+                                :class="{ active: settingsOpen }"
+                            >
+                                <DlIcon
+                                    icon="icon-dl-settings"
+                                    size="16px"
+                                    :color="settingsOpen ? 'dell-blue-500' : 'dell-gray-700'"
+                                />
+                                <DlTooltip v-if="!settingsOpen">Settings</DlTooltip>
+                                <DlMenu v-model="settingsOpen" :offset="[0, 4]">
+                                    <SimilarityControls
+                                        :similarity="similarity"
+                                        :min-cluster-size="minClusterSize"
+                                        :cluster-sizes="clusterSizes"
+                                        stacked
+                                        @update:similarity="similarity = $event"
+                                        @update:min-cluster-size="minClusterSize = $event"
+                                    />
+                                </DlMenu>
+                            </div>
+                        </template>
+
+                        <DlSlider
+                            v-model="anomality"
+                            :class="{ invisible: selectedType !== 'Anomalies' }"
+                            class="slider w-20"
+                            text="Minimal Distance"
+                            :min="0.5"
+                            :max="1"
+                            :step="0.001"
+                        />
+
+                        <DlRange
+                            v-model="minmax"
+                            class="range"
+                            :class="{
+                                invisible: selectedType == 'Similarity' || selectedType == 'Anomalies'
+                            }"
+                            :text="selectedType"
+                            :min="0"
+                            :max="1"
+                            :step="0.01"
+                            width="100%"
+                        />
+                    </div>
+                </div>
+
+                <DlButton :disabled="isDisabled" @click="getImages">Apply</DlButton>
             </div>
-
-            <DlSlider
-                v-model="anomality"
-                :class="{ invisible: selectedType !== 'Anomalies' }"
-                class="slider w-20"
-                text="Minimal Distance"
-                :min="0.5"
-                :max="1"
-                :step="0.001"
-            />
-
-            <DlRange
-                v-model="minmax"
-                class="range"
-                :class="{
-                    invisible: selectedType == 'Similarity' || selectedType == 'Anomalies'
-                }"
-                :text="selectedType"
-                :min="0"
-                :max="1"
-                :step="0.01"
-                width="100%"
-            />
-
-            <DlButton :disabled="isDisabled" @click="getImages">Apply</DlButton>
-
-            <ReloadProgress
-                :last-updated="lastUpdated"
-                :progress="progress"
-                @reload="triggerReload"
-            />
         </div>
         <div v-if="loading || props.progress < 1" class="loading">
             <CleanupLoadingAnimation :progress="props.progress" />
         </div>
-        <div v-if="!showMainContent">
+        <div v-if="!showMainContent && props.progress >= 1">
             <EmptyState text1="" :text2="message" />
         </div>
 
@@ -315,12 +351,16 @@ import {
     DlPagination,
     DlRange,
     DlChip,
-    DlIcon
+    DlIcon,
+    DlMenu,
+    DlRadio,
+    DlTooltip
 } from '@dataloop-ai/components'
 import CleanupLoadingAnimation from './CleanupLoadingAnimation.vue'
 import ItemThumbnailImage from './ItemThumbnailImage.vue'
 import EmptyState from './EmptyState.vue'
 import ReloadProgress from './ReloadProgress.vue'
+import SimilarityControls from './SimilarityControls.vue'
 import { ref, computed, nextTick, defineExpose, defineEmits, watch } from 'vue-demi'
 import debounce from './debounce'
 import { addItems } from './items'
@@ -338,6 +378,7 @@ const datasetItemsCount = ref(0)
 const minClusterSize = ref(2)
 const clusterSizes = ref([2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 100])
 
+const settingsOpen = ref(false)
 const loading = ref(false)
 const mounted = ref(false)
 const featureSetCalled = ref(false)
@@ -881,16 +922,100 @@ const toggleSortDirection = () => {
 </script>
 
 <style scoped>
-.flex-container {
-    display: flex; /* Establishes the flex container */
-    justify-content: space-between;
-    align-items: center; /* Vertically centers the items in the container */
-    padding-bottom: 10px;
+.toolbar {
+    container-type: inline-size;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
     border-bottom: 1px solid var(--dell-gray-300);
 }
 
+.flex-container {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 56px;
+    min-width: 416px;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+.main-controls {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 8px;
+    padding: 0 16px;
+}
+
+.tags {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.toolbar-select :deep(.dl_select__select) {
+    box-sizing: border-box;
+    width: 100%;
+    height: 28px;
+    padding: 0 28px 0 12px;
+    border-color: var(--dell-gray-500);
+    border-radius: 9999px;
+    font-size: 14px;
+}
+
+.toolbar-select :deep(.selected-label) {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--dell-gray-700);
+}
+
+.toolbar-select :deep(.adornment-container) {
+    height: 100%;
+}
+
+.toolbar-select :deep(.dl_select__select--focused .selected-label) {
+    color: var(--dell-blue-500);
+}
+
+.toolbar-select :deep(.dl_select__select--focused .expand-icon) {
+    transform: rotate(180deg);
+}
+
+.type-radio {
+    pointer-events: none;
+}
+
+.settings-button {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.settings-button:hover {
+    background: var(--dell-gray-100);
+}
+
+.settings-button.active {
+    background: var(--dell-blue-100);
+}
+
 .w-20 {
-    width: 20%;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 260px;
 }
 
 .slider {
@@ -904,32 +1029,17 @@ const toggleSortDirection = () => {
     margin-left: 0;
 }
 
-.select-s {
-    display: flex;
-    align-items: center;
-}
-.select-s :deep(.dl-select__title-container) {
-    margin-bottom: 0px !important;
-    margin-right: 5px !important;
-}
 
 .actions {
     display: flex;
 }
 
-.range-all {
-    width: 20%;
-    min-width: fit-content;
-    display: flex;
-    justify-content: space-between;
-}
 .range {
-    width: 20%;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 260px;
+    overflow: hidden;
     flex-direction: column;
-}
-
-.w-100-120px {
-    width: calc(100% - 120px);
 }
 
 .range :deep(.header) {
@@ -958,15 +1068,12 @@ const toggleSortDirection = () => {
 }
 
 .loading {
-    display: grid; /* Use the grid layout */
-    place-items: center; /* Center items both horizontally and vertically */
-    height: 100vh; /* Full viewport height to ensure centering is relative to the entire screen */
-    width: 100vw; /* Full viewport width, necessary if your spinner is absolute or fixed positioned */
+    width: 100%;
 }
 .left-pannel {
     min-width: 110px;
     overflow-y: auto;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 85px);
 }
 .right-pannel {
     border-left: 1px solid var(--dell-gray-300);
@@ -983,7 +1090,7 @@ const toggleSortDirection = () => {
     justify-content: flex-start;
     padding-left: 30px;
     padding-top: 12px;
-    height: calc(100vh - 80px - 35px); /* 35px for thumbs slider */
+    height: calc(100vh - 85px - 35px); /* 35px for thumbs slider */
 }
 
 .right-pannel .thumb-size {
@@ -1011,7 +1118,7 @@ const toggleSortDirection = () => {
     overflow-y: auto;
     align-content: flex-start;
     justify-content: flex-start;
-    height: calc(100vh - 80px - 40px); /* 40px for pagination */
+    height: calc(100vh - 85px - 40px); /* 40px for pagination */
     overflow-y: auto;
 }
 
@@ -1069,5 +1176,24 @@ const toggleSortDirection = () => {
     gap: 20px;
     justify-content: center;
     align-items: center;
+}
+</style>
+
+<style>
+@container (max-width: 810px) {
+    .toolbar .tags .toolbar-select {
+        width: 100px;
+    }
+}
+
+@container (max-width: 627px) {
+    .toolbar .controls .settings-button {
+        display: flex;
+    }
+}
+
+.toolbar-menu {
+    min-width: 238px !important;
+    max-width: none !important;
 }
 </style>

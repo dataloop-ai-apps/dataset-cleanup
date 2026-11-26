@@ -165,7 +165,7 @@ const updateStatus = async () => {
 
 <style scoped>
 .base-container {
-    height: calc(100vh - 105px);
+    height: calc(100vh - 110px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -173,7 +173,7 @@ const updateStatus = async () => {
 }
 
 .base-container-f14 {
-    height: calc(100vh - 105px);
+    height: calc(100vh - 110px);
     display: flex;
     justify-content: center;
     align-items: start;
