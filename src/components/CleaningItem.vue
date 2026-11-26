@@ -1069,6 +1069,10 @@ const toggleSortDirection = () => {
 
 .loading {
     width: 100%;
+    height: calc(100vh - 110px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .left-pannel {
     min-width: 110px;
